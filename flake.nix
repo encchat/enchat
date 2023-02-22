@@ -9,7 +9,7 @@
     let
       pkgs = nixpkgs.legacyPackages.${system};
       libraries = with pkgs; [
-        webkitgtk
+        webkitgtk_4_1
         gtk3
         cairo
         gdk-pixbuf
@@ -27,7 +27,7 @@
         glib
         gtk3
         libsoup
-        webkitgtk
+        webkitgtk_4_1
         nodejs-19_x
         rust-analyzer
         rustfmt
