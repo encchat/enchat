@@ -37,7 +37,8 @@ pub fn generate_identity_key() -> Keypair {
 
 pub fn generate_prekey(identity_key: &Keypair) ->  Prekey {
     let prekey = encryption::generate_key();
-    let signed = sign(identity_key, &prekey.public.to_bytes());
+    let b58 = to_base58(&prekey.public);
+    let signed = sign(identity_key, &b58.as_bytes());
     Prekey(prekey, signed)
 }
 
@@ -71,6 +72,7 @@ mod tests {
     }
 
     fn test_keypair() -> Keypair {
+        // hardcoded bytes as unit tests shouldn't rely on random values
         let bytes: [u8; 64] = [
             136, 57, 125, 2, 68, 24, 60, 82,
             2, 84, 117, 191, 215, 93, 117, 6,
@@ -87,10 +89,10 @@ mod tests {
     #[test]
     fn prekey_valid_signature() -> Result<(), SignatureError> {
         let id_keys = test_keypair();
-        // hardcoded bytes as unit tests shouldn't rely on random values
         let prekey = generate_prekey(&id_keys);
         let signature = prekey.1;
-        id_keys.verify(prekey.0.public.as_bytes(), &signature)
+        let prekey_public_b58 = bs58::encode(&prekey.0.public).into_string();
+        id_keys.verify(prekey_public_b58.as_bytes(), &signature)
     }
     #[test]
     fn keybundle_serializion() {
