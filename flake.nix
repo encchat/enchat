@@ -36,6 +36,7 @@
         sass
         nodePackages.pnpm
         cargo
+        supabase-cli
       ];
     in {
       devShells.default = pkgs.mkShell {
