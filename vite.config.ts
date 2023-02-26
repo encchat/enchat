@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { svelte, vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import sveltePreprocess from "svelte-preprocess";
+import * as path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -34,4 +35,9 @@ export default defineConfig({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
   },
+  resolve: {
+    alias: {
+      src: path.resolve('./src')
+    }
+  }
 });
