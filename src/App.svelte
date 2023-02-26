@@ -13,3 +13,9 @@ onMount(async () => {
    <button on:click={logout}>Logout</button>
   {/if}
 </main>
+
+<style>
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+</style>

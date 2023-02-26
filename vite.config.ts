@@ -10,6 +10,7 @@ export default defineConfig({
         sveltePreprocess({
           typescript: true,
         }),
+        vitePreprocess()
       ],
     }),
   ],
