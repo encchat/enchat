@@ -13,7 +13,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.8.0",
     "@tauri-apps/api": "^1.2.0",
-    "jwt-decode": "^3.1.2"
+    "sass": "^1.58.3",
+    "svelte-asyncable": "^2.1.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^2.0.0",
