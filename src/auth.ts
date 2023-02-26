@@ -3,7 +3,6 @@ import { derived, get, writable } from "svelte/store";
 import {getClient, Body, type Client} from '@tauri-apps/api/http'
 import jwtDecode from "jwt-decode";
 
-export const isAuthenticated = writable(false)
 
 interface TokenStore {
     refresh_token: string;
@@ -16,6 +15,7 @@ interface User {
     name: string;
 }
 export const tokens = writable<TokenStore | null>(null)
+export const isAuthenticated = derived<typeof tokens, boolean>(tokens, (tokens) => tokens !== null)
 export const user = derived<typeof tokens, User | null>(tokens, (tokens) => {
     if (!tokens) return null
     return jwtDecode<User>(tokens.id_token)
@@ -28,7 +28,7 @@ const authConfig = {
 }
 
 function getAuthenticationUrl() {
-    return `https://${authConfig.domain}/authorize?scope=openid profile offline_access&response_type=code&client_id=${authConfig.clientid}&redirect_uri=${authConfig.redirectUrl}`
+    return `https://${authConfig.domain}/authorizee?scope=openid profile offline_access&response_type=code&client_id=${authConfig.clientid}&redirect_uri=${authConfig.redirectUrl}`
 }
 
 interface ExchangeResponse {
@@ -48,37 +48,60 @@ function exchangeToken(client: Client, token: string, refreshToken?: boolean) {
     return client.post<ExchangeResponse>(`https://${authConfig.domain}/oauth/token`, body)
 }
 
-export function createClient() {
-}
-
 export async function login() {
     if (get(tokens) != null) return
+    console.debug('Logging in')
     const client = await getClient()
     let refreshToken: string | null = await invoke('get_refresh_token')
     if (refreshToken) {
-        // TODO: Logout if invalid
-        const {data} = await exchangeToken(client, refreshToken, true)
-        tokens.set({
-            refresh_token: refreshToken,
-            ...data
-        })
-        if (data.refresh_token) 
-            await invoke('set_refresh_token', {refreshToken: data.refresh_token})
+        try {
+            const {data} = await exchangeToken(client, refreshToken, true)
+            console.debug('Token refreshed')
+            tokens.set({
+                refresh_token: refreshToken,
+                ...data
+            })
+            // Is this path possible? I know refresh token may rotate
+            if (data.refresh_token) {
+                console.debug('Received new refresh token')
+                await invoke('set_refresh_token', {refreshToken: data.refresh_token})
+            }
+        } catch {
+            console.debug('Invalid refresh token, logging out')
+            await logout()
+            await login()
+        }
 
     }
     else {
         const url: string = await invoke('login', {authUrl: getAuthenticationUrl()})
+        console.debug('Received auth code from auth0')
         const {data} = await exchangeToken(client,
             url.substring(url.indexOf('code=')+'code='.length))
+        console.debug('Exchanged code for tokens')
         tokens.set({
             refresh_token: refreshToken,
             ...data
         })
         await invoke('set_refresh_token', {refreshToken: data.refresh_token})
+        console.debug('Saved refresh token')
     }
-    isAuthenticated.set(true)
 }
 
-function logout() {
-    
+async function revokeRefreshToken(client: Client, token: string) {
+    const body = Body.json({
+        client_id: authConfig.clientid,
+        token
+    })
+    return client.post(`https://${authConfig.domain}/oauth/revoke`, body)
+}
+
+export async function logout() {
+    const client = await getClient()
+    let refreshToken: string | null = await invoke('get_refresh_token')
+    if (!refreshToken) return;
+    await revokeRefreshToken(client, refreshToken).catch(console.error)
+    console.debug('Refresh token revoked')
+    await invoke('logout').then(_ => console.debug('Logged out'))
+    tokens.set(null)
 }
