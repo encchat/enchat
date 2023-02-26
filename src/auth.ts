@@ -17,7 +17,6 @@ interface User {
 }
 export const tokens = writable<TokenStore | null>(null)
 export const user = derived<typeof tokens, User | null>(tokens, (tokens) => {
-    console.log(tokens)
     if (!tokens) return null
     return jwtDecode<User>(tokens.id_token)
 }, null)
@@ -46,7 +45,6 @@ function exchangeToken(client: Client, token: string, refreshToken?: boolean) {
             refresh_token: token,
             redirect_uri: authConfig.redirectUrl
         })
-    console.log(body)
     return client.post<ExchangeResponse>(`https://${authConfig.domain}/oauth/token`, body)
 }
 
@@ -78,10 +76,9 @@ export async function login() {
         })
         await invoke('set_refresh_token', {refreshToken: data.refresh_token})
     }
-    console.log(get(user))
     isAuthenticated.set(true)
 }
 
-function logout(client: Auth0Client) {
-    return client.logout()
+function logout() {
+    
 }
