@@ -16,6 +16,7 @@ const getProfile = async () => {
     username = data.username
     avatar_url = data.avatar_url.length ? data.avatar_url : null
 }
+
 onMount(async () => {
     await getProfile()
 })

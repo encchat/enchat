@@ -1,5 +1,6 @@
 <script lang="ts">
 import AccountSetup from './lib/AccountSetup.svelte';
+import KeyManager from './lib/KeyManager.svelte';
 import Login from './lib/Login.svelte';
 import Logut from './lib/Logout.svelte';
 import UserSearch from './lib/UserSearch.svelte';
@@ -17,6 +18,7 @@ import {isAuthenticated, user} from './store'
         <p>...</p>
       {:then currentUser}
         <AccountSetup user={currentUser}/>
+        <KeyManager user={currentUser}/>
       {/await}
     {:else}
       <Login/>

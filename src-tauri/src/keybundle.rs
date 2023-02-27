@@ -54,6 +54,13 @@ pub fn to_base58<K: AsRef<[u8]>>(bytes: K) -> String {
     bs58::encode(bytes).into_string()
 }
 
+#[tauri::command]
+pub fn request_onetime_keys(keys: usize) -> Result<Vec<String>, ()> {
+    let keys = generate_onetime_keys(keys);
+    let b58_keys = keys.iter().map(|x| to_base58(x.public));
+    Ok(b58_keys.collect())
+}
+
 #[cfg(test)]
 mod tests {
     use ed25519_dalek::{SignatureError, PublicKey, Signer};
