@@ -855,6 +855,7 @@ dependencies = [
  "dotenv",
  "ed25519-dalek",
  "keyring",
+ "log",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
