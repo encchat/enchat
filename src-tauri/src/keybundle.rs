@@ -1,5 +1,6 @@
 
 use ed25519_dalek::{Keypair, Signature};
+use keyring::Entry;
 use serde::{Serialize, ser::SerializeStruct};
 
 use crate::encryption::{self, sign};
@@ -54,12 +55,41 @@ pub fn to_base58<K: AsRef<[u8]>>(bytes: K) -> String {
     bs58::encode(bytes).into_string()
 }
 
-#[tauri::command]
-pub fn request_onetime_keys(keys: usize) -> Result<Vec<String>, ()> {
-    let keys = generate_onetime_keys(keys);
-    let b58_keys = keys.iter().map(|x| to_base58(x.public));
-    Ok(b58_keys.collect())
+
+fn get_key_entry(key_type: &str, id: Option<usize>) -> Result<Entry, keyring::Error> {
+    if let Some(x) = id {
+        Entry::new_with_target("enchat-keyring","enchat",&format!("{}-{}", key_type, x))
+    } else {
+        Entry::new_with_target("enchat-keyring","enchat", key_type)
+    }
 }
+
+fn get_key(key_type: &str, id: Option<usize>) -> Option<String> {
+    match get_key_entry(key_type, id) {
+        Ok(entry) => entry.get_password().ok(),
+        Err(_) => None,
+    }
+}
+
+pub fn store_key(key_type: &str, key: &str, id: Option<usize>) -> Result<(), keyring::Error> {
+    get_key_entry(key_type, id)
+        .and_then(move |entry| entry.set_password(key))
+}
+
+#[tauri::command]
+pub fn request_onetime_keys(keys: usize, last_key: usize) -> Result<Vec<String>, ()> {
+    let keys = generate_onetime_keys(keys);
+    let b58_keys: Vec<String> = keys.iter().map(|x| to_base58(x.public)).collect();
+    for (i, key) in keys.iter().enumerate() {
+        let id = i + 1 + last_key;
+        let result = store_key("onetime", &to_base58(&key.secret), Some(id));
+        if result.is_err() {
+            debug!("Failed to store onetime key {}", id);
+        }
+    }
+    Ok(b58_keys)
+}
+
 
 #[cfg(test)]
 mod tests {
