@@ -16,10 +16,16 @@ interface Keybundle {
     signature: string;
 }
 
-const uploadKeys = (keys: string[], user_id: string) => {
+interface OnetimeKey {
+    key: string;
+    id: number;
+}
+
+const uploadKeys = (keys: OnetimeKey[], user_id: string) => {
     const promise = keys.map(x => supabaseClient.from('onetime-key').insert({
         user: user.id,
-        key: x
+        key: x.key,
+        local_id: x.id
     }))
     return Promise.all(promise)
 }
@@ -36,7 +42,7 @@ const setupKeys = async () => {
         key: keybundle.prekey,
         signature: keybundle.signature
     })
-    await uploadKeys(keybundle.onetime, user.id)
+    await uploadKeys(keybundle.onetime.map((x,i) => ({key: x, id: i})), user.id)
     console.debug('Uploaded keys')
 }
 
@@ -47,14 +53,28 @@ const hasStoredKeys = async (): Promise<boolean> => {
 }
 
 const getNumberOfKeysToGenerate = async (): Promise<number> => {
-    const remainingKeys = await supabaseClient.from('onetime-key').select('*', {count: 'exact'}).eq('user', user.id)
+    const remainingKeys = await supabaseClient.from('onetime-key')
+        .select('*', {count: 'exact'})
+        .eq('user', user.id)
+        .filter('used', 'is', 'null')
+    if (remainingKeys.error) return 0
     return MAX_KEYS - remainingKeys.count
 }
-const generateOnetimeKeys = async (n: number) =>     }{
+const generateOnetimeKeys = async (n: number) => {
+    const {data} = await supabaseClient.from('onetime-key')
+        .select('local_id')
+        .eq('user', user.id)
+        .order('local_id', { ascending: false } )
+        .limit(1)
+    const lastKey = data?.length > 0 ? data[0].local_id : 0
     console.debug(`Refreshing ${n} onetime keys`)
-    const keys = await invoke<string[]>('request_onetime_keys', {keys: n})
-    await uploadKeys(keys, user.id)
+    const keys = await invoke<string[]>('request_onetime_keys', {keys: n, lastKey: lastKey})
+    await uploadKeys(keys.map((x,i) => ({key: x, id: i + 1 + lastKey}) ), user.id)
     console.debug(`Uploaded ${n} onetime keys`)
+}
+
+const removeUsedKeys = async () => {
+    return supabaseClient.from('onetime-key').delete().eq('used', true).eq('user', user.id)
 }
 
 onMount(async () => {
@@ -63,6 +83,7 @@ onMount(async () => {
     const keys = await getNumberOfKeysToGenerate()
     if (keys > 0)
         await generateOnetimeKeys(keys)
+    await removeUsedKeys()
 })
 
 </script>

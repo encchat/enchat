@@ -88,18 +88,24 @@ export interface Database {
           created_at: string | null
           id: number
           key: string
+          local_id: number
+          used: boolean | null
           user: string
         }
         Insert: {
           created_at?: string | null
           id?: number
           key: string
+          local_id: number
+          used?: boolean | null
           user: string
         }
         Update: {
           created_at?: string | null
           id?: number
           key?: string
+          local_id?: number
+          used?: boolean | null
           user?: string
         }
       }
