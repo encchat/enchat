@@ -77,3 +77,18 @@ export class Prekey extends Key {
     }
 }
 
+export class OnetimeKey extends Key {
+    async shouldGenerate(userId: string): Promise<boolean> {
+        console.log('???')
+        return false
+        // throw new Error('Method not implemented.');
+    }
+    async generate(userId: string): Promise<string> {
+        throw new Error('Method not implemented.');
+    }
+    async fetch(userId: string): Promise<string> {
+        const {data, error} = await supabaseClient.rpc('get_onetime_key', {user_id: userId});
+        return data
+    }
+    
+}
