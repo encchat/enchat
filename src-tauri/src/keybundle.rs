@@ -1,51 +1,27 @@
 
-use ed25519_dalek::{Keypair, Signature};
+use ed25519_dalek::{Signature, SigningKey, SECRET_KEY_LENGTH};
 use keyring::Entry;
 use serde::{Serialize, ser::SerializeStruct};
 
 use crate::encryption::{self, sign};
 
-
-pub struct Prekey(pub Keypair, pub Signature);
-#[derive(Debug)]
-pub struct Keybundle<K: AsRef<[u8]>> {
-    pub identity: K,
-    pub prekey: K,
-    pub signature: Signature,
-    pub onetime: Vec<K>
-}
-
-impl <K: AsRef<[u8]>> Serialize for Keybundle<K> {
+pub struct Prekey(pub SigningKey, pub Signature);
+impl Serialize for Prekey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer {
-            let identity_b58 = to_base58(&self.identity);
-            let prekey_b58 = to_base58(&self.prekey);
-            let signature_b58 = to_base58(&self.signature);
-            let onetime_b58 = self.onetime.iter().map(|x| to_base58(&x)).collect::<Vec<String>>();
-            let mut s = serializer.serialize_struct("Keybundle", 4)?;
-            s.serialize_field("identity", &identity_b58)?;
-            s.serialize_field("prekey", &prekey_b58)?;
-            s.serialize_field("signature", &signature_b58)?;
-            s.serialize_field("onetime", &onetime_b58)?;
+            let public_prekey_b58 = to_base58(&self.0.verifying_key());
+            let b58_signature = to_base58(&self.1.to_bytes());
+            let mut s = serializer.serialize_struct("Prekey", 2)?;
+            s.serialize_field("prekey", &public_prekey_b58)?;
+            s.serialize_field("signature",&b58_signature)?;
             s.end()
     }
 }
 
-pub fn generate_identity_key() -> Keypair {
-    encryption::generate_key()
-}
-
-pub fn generate_prekey(identity_key: &Keypair) ->  Prekey {
-    let prekey = encryption::generate_key();
-    let b58 = to_base58(&prekey.public);
-    let signed = sign(identity_key, &b58.as_bytes());
-    Prekey(prekey, signed)
-}
-
-pub fn generate_onetime_keys(keys: usize) -> Vec<Keypair> {
-    let mut onetime_keys : Vec<Keypair> = Vec::with_capacity(keys);
-    for x in 0..keys {
+pub fn generate_onetime_keys(keys: usize) -> Vec<SigningKey> {
+    let mut onetime_keys : Vec<SigningKey> = Vec::with_capacity(keys);
+    for _ in 0..keys {
         onetime_keys.push(encryption::generate_key());
     }
     onetime_keys
@@ -76,13 +52,19 @@ pub fn store_key(key_type: &str, key: &str, id: Option<usize>) -> Result<(), key
         .and_then(move |entry| entry.set_password(key))
 }
 
+fn key_from_b58(b58: &str) -> SigningKey {
+    let mut output: [u8; SECRET_KEY_LENGTH] = [0x0; SECRET_KEY_LENGTH];
+    bs58::decode(b58).into(&mut output).unwrap();
+    return SigningKey::from_bytes(&output)
+}
+
 #[tauri::command]
 pub fn request_onetime_keys(keys: usize, last_key: usize) -> Result<Vec<String>, ()> {
     let keys = generate_onetime_keys(keys);
-    let b58_keys: Vec<String> = keys.iter().map(|x| to_base58(x.public)).collect();
+    let b58_keys: Vec<String> = keys.iter().map(|x| to_base58(&x.verifying_key())).collect();
     for (i, key) in keys.iter().enumerate() {
         let id = i + 1 + last_key;
-        let result = store_key("onetime", &to_base58(&key.secret), Some(id));
+        let result = store_key("onetime", &to_base58(&key.to_bytes()), Some(id));
         if result.is_err() {
             debug!("Failed to store onetime key {}", id);
         }
@@ -90,11 +72,26 @@ pub fn request_onetime_keys(keys: usize, last_key: usize) -> Result<Vec<String>,
     Ok(b58_keys)
 }
 
+#[tauri::command]
+pub fn request_identity_key() -> Result<String, ()> {
+    let id = encryption::generate_key();
+    store_key("identity", &to_base58(&id.to_bytes()), None).unwrap();
+    Ok(to_base58(&id.verifying_key()))
+}
+#[tauri::command]
+pub fn request_prekey() -> Result<Prekey, &'static str> {
+    let identity_b58 = get_key("identity", None).ok_or("Identity key not found in the keyring")?;
+    let identity_key = key_from_b58(&identity_b58);
+    let prekey = encryption::generate_key();
+    let b58 = to_base58(&prekey.verifying_key());
+    let signed = sign(&identity_key, &b58.as_bytes());
+    store_key("prekey", &to_base58(&prekey.to_bytes()), None).unwrap();
+    Ok(Prekey(prekey, signed))
+}
 
 #[cfg(test)]
 mod tests {
-    use ed25519_dalek::{SignatureError, PublicKey, Signer};
-    use serde_test::{assert_ser_tokens, Token};
+    use ed25519_dalek::{SigningKey};
     extern crate serde_test;
     use super::*;
     #[test]
@@ -108,7 +105,7 @@ mod tests {
         assert_eq!(keys.len(), 8);
     }
 
-    fn test_keypair() -> Keypair {
+    fn test_keypair() -> SigningKey {
         // hardcoded bytes as unit tests shouldn't rely on random values
         let bytes: [u8; 64] = [
             136, 57, 125, 2, 68, 24, 60, 82,
@@ -120,42 +117,6 @@ mod tests {
             36, 0, 141, 184, 61, 162, 19, 250,
             129, 114, 199, 206, 50, 132, 234, 146,
         ];
-        Keypair::from_bytes(&bytes).unwrap()
-    }
-
-    #[test]
-    fn prekey_valid_signature() -> Result<(), SignatureError> {
-        let id_keys = test_keypair();
-        let prekey = generate_prekey(&id_keys);
-        let signature = prekey.1;
-        let prekey_public_b58 = bs58::encode(&prekey.0.public).into_string();
-        id_keys.verify(prekey_public_b58.as_bytes(), &signature)
-    }
-    #[test]
-    fn keybundle_serializion() {
-        let keys = test_keypair();
-        let bundle: Keybundle<PublicKey> = Keybundle {
-            identity: keys.public,
-            prekey: keys.public,
-            signature: keys.sign(keys.public.as_bytes()),
-            onetime: [keys.public, keys.public].to_vec()
-        };
-        let b58_public = "2up846HMkTuxSmnn5EgF9J96MGoiXrtNtAe453mcnoys";
-        let b58_signature = "54URn1aoiwPEmoEAqfNsvnaVRZen6JSjubqDmuSFpGnmMnophiT4k7gT9mRHxa4pgj3mePn7VhiucutZcAFDbvm5";
-        assert_ser_tokens(&bundle, &[
-            Token::Struct { name: "Keybundle", len: 4},
-            Token::Str("identity"),
-            Token::String(b58_public),
-            Token::Str("prekey"),
-            Token::String(b58_public),
-            Token::Str("signature"),
-            Token::String(b58_signature),
-            Token::Str("onetime"),
-            Token::Seq { len: Some(bundle.onetime.len()) },
-            Token::String(b58_public),
-            Token::String(b58_public),
-            Token::SeqEnd,
-            Token::StructEnd
-        ])
+        SigningKey::from_keypair_bytes(&bytes).unwrap()
     }
 }

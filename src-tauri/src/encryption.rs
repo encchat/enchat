@@ -2,17 +2,17 @@ extern crate ed25519_dalek;
 
 
 use rand::rngs::OsRng;
-use ed25519_dalek::{Keypair, Signature, Signer};
+use ed25519_dalek::{Signature, SigningKey, Signer};
 
 pub fn get_rng() -> OsRng {
     OsRng{}
 }
 
-pub fn generate_key() -> Keypair {
+pub fn generate_key() -> SigningKey {
     let mut rng = get_rng();
-    Keypair::generate(&mut rng)
+    SigningKey::generate(&mut rng)
 }
 
-pub fn sign(keypair: &Keypair, message: &[u8]) -> Signature {
+pub fn sign(keypair: &SigningKey, message: &[u8]) -> Signature {
     keypair.sign(message)
 }
