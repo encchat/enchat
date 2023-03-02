@@ -4,11 +4,10 @@
 )]
 
 
-use crate::{auth::{login, get_refresh_token, set_refresh_token, logout}, keybundle::{request_onetime_keys, request_prekey, request_identity_key}};
+use crate::{keybundle::{request_onetime_keys, request_prekey, request_identity_key}};
 
 mod encryption;
 mod keybundle;
-mod auth;
 
 extern crate pretty_env_logger;
 #[macro_use] extern crate log;
@@ -26,7 +25,7 @@ fn main() {
     pretty_env_logger::init();
     dotenv::dotenv().ok();
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, login, get_refresh_token, set_refresh_token, logout, request_onetime_keys, request_identity_key, request_prekey])
+        .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
