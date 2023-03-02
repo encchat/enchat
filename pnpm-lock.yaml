@@ -8,6 +8,7 @@ specifiers:
   '@tsconfig/svelte': ^3.0.0
   '@types/node': ^18.7.10
   autoprefixer: ^10.4.13
+  base58-js: ^2.0.0
   postcss: ^8.4.21
   sass: ^1.58.3
   svelte: ^3.54.0
@@ -22,6 +23,7 @@ specifiers:
 dependencies:
   '@supabase/supabase-js': 2.8.0
   '@tauri-apps/api': 1.2.0
+  base58-js: 2.0.0
   sass: 1.58.3
   svelte-asyncable: 2.1.0_svelte@3.55.1
 
@@ -524,6 +526,11 @@ packages:
   /balanced-match/1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
     dev: true
+
+  /base58-js/2.0.0:
+    resolution: {integrity: sha512-nAV5d32QXuGcGptSApkKpC1gGakWBnfJMNjKrYTBh4tb0szfZF+ooueFLy8T4VrY+o4SrE/TyrtUnRZcwZchaA==}
+    engines: {node: '>= 8'}
+    dev: false
 
   /binary-extensions/2.2.0:
     resolution: {integrity: sha512-jDctJ/IVQbZoJykoeHbhXpOlNBqGNcwXJKJog42E5HDPUwQTSdjCHdihjj0DlnheQ7blbT6dHOafNAiS8ooQKA==}
