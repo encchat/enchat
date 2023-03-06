@@ -1,5 +1,5 @@
 
-use ed25519_dalek::{Signature, SigningKey, SECRET_KEY_LENGTH};
+use ed25519_dalek::{Signature, SigningKey, SECRET_KEY_LENGTH, VerifyingKey, PUBLIC_KEY_LENGTH};
 use keyring::Entry;
 use serde::{Serialize, ser::SerializeStruct};
 
@@ -40,7 +40,7 @@ fn get_key_entry(key_type: &str, id: Option<usize>) -> Result<Entry, keyring::Er
     }
 }
 
-fn get_key(key_type: &str, id: Option<usize>) -> Option<String> {
+pub fn get_key(key_type: &str, id: Option<usize>) -> Option<String> {
     match get_key_entry(key_type, id) {
         Ok(entry) => entry.get_password().ok(),
         Err(_) => None,

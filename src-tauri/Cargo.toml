@@ -27,6 +27,9 @@ url = "2.3.1"
 dotenv = "^0.15"
 pretty_env_logger="0.4.0"
 log = "0.4"
+x25519-dalek = { version = "2.0.0-pre.1" }
+hkdf = "^0.12.3"
+sha2 = "^0.10.6"
 [features]
 # by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
