@@ -19,7 +19,7 @@ pub fn generate_key() -> SigningKey {
 }
 
 pub fn generate_ephemeral() -> StaticSecret {
-    let mut rng = get_rng();
+    let rng = get_rng();
     StaticSecret::new(rng)
 }
 

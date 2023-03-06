@@ -4,7 +4,7 @@
 )]
 
 
-use crate::{keybundle::{request_onetime_keys, request_prekey, request_identity_key}};
+use crate::{keybundle::{request_onetime_keys, request_prekey, request_identity_key}, encryption::calculate_psk};
 
 mod encryption;
 mod keybundle;
@@ -25,7 +25,7 @@ fn main() {
     pretty_env_logger::init();
     dotenv::dotenv().ok();
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey])
+        .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey, calculate_psk])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
