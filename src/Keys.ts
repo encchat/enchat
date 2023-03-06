@@ -1,22 +1,16 @@
 import { invoke } from '@tauri-apps/api';
-import type { T } from '@tauri-apps/api/event-2a9960e7';
-import { binary_to_base58 } from 'base58-js'
-import { user } from './store';
 import { supabaseClient } from './supabase';
 
 const MAX_KEYS = 10
 
-export function decode_base58(encoded: string): Uint8Array {
-    return binary_to_base58(encoded)
-}
 
 /**
  * Class used for handling public keys
  */
 export abstract class Key {
-    private _key: Uint8Array | null = null;
+    private _key: String | null = null;
 
-    public get getKey() { return this._key }
+    public get key() { return this._key }
     
     abstract shouldGenerate(userId: string): Promise<boolean>;
     abstract generate(userId: string): Promise<string>;
@@ -26,7 +20,7 @@ export abstract class Key {
         const {data: {user}} = await supabaseClient.auth.getUser()
         const key = await ((user.id === userId && await this.shouldGenerate(userId)) ? this.generate(userId) : this.fetch(userId, user.id))
         // TODO: Handle nulls
-        this._key &&= decode_base58(key)
+        this._key = key
     }
 }
 
@@ -88,15 +82,10 @@ export class Prekey extends Key {
 
 interface OnetimeKeys {
     id: number;
-    key: Uint8Array
+    key: String 
 }
 export class OnetimeKey extends Key {
-    private _keysContainer: OnetimeKeys[]
     private _keysToGenerate: number = 0
-
-    public get getKey(): Uint8Array {
-        return this._keysContainer[0].key
-    }
 
     async shouldGenerate(userId: string): Promise<boolean> {
         const remainingKeys = await supabaseClient.from('onetime-key')
@@ -115,10 +104,6 @@ export class OnetimeKey extends Key {
             .limit(1)
         const lastKey = data?.length > 0 ? data[0].local_id : 0
         const keys = await (await invoke<string[]>('request_onetime_keys', {keys: this._keysToGenerate, lastKey: lastKey}))
-        this._keysContainer = keys.map((x, i) => ({
-            key: decode_base58(x),
-            id: lastKey + i + 1
-        }))
         const uploadPromise = keys.map((x, i) => supabaseClient.from('onetime-key').insert({
             user: userId,
             key: x,
