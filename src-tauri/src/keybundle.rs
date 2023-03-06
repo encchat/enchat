@@ -1,5 +1,5 @@
 
-use ed25519_dalek::{Signature, SigningKey, SECRET_KEY_LENGTH, VerifyingKey, PUBLIC_KEY_LENGTH};
+use ed25519_dalek::{Signature, SigningKey, SECRET_KEY_LENGTH};
 use keyring::Entry;
 use serde::{Serialize, ser::SerializeStruct};
 
