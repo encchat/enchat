@@ -4,13 +4,13 @@ use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
-use crate::{keybundle::get_key, encryption::{x_key_from_b58, generate_ephemeral, kdf, Key, RootKey}, message::{InitialData, self, Message}};
+use crate::{keybundle::get_key, encryption::{x_key_from_b58, generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}};
 
 
 #[derive(Debug)]
 pub struct Chain {
     id: u32,
-    input_key: [u8; 32],
+    input_key: RootKey,
 }
 
 pub struct DHRachet {
@@ -28,15 +28,17 @@ impl DHRachet {
     pub fn calculate_dh(&self) -> SharedSecret {
         self.our_keypair.diffie_hellman(&self.their_public)
     }
-    pub fn step(&mut self, new_public_key: PublicKey) {
-        self.our_keypair = generate_ephemeral();
+    pub fn step(&mut self, new_public_key: PublicKey) -> SharedSecret {
         self.their_public = new_public_key;
+        let dh = self.calculate_dh();
+        self.our_keypair = generate_ephemeral();
+        dh
     }
 }
 
 
 impl Chain {
-    fn step(&mut self, dh_input: Option<&SharedSecret>) -> [u8; 32] {
+    fn step(&mut self, dh_input: Option<&SharedSecret>) -> Otherkey {
         let mut vec: Vec<u8> = Vec::with_capacity(64);
         if let Some(dh) = dh_input {
             vec.extend_from_slice(dh.as_bytes());
@@ -46,7 +48,9 @@ impl Chain {
         self.input_key = output.0;
         self.id+=1;
         output.1
-
+    }
+    fn set_key(&mut self, key: RootKey) {
+        self.input_key = key;
     }
 }
 impl Default for Chain {
@@ -122,6 +126,18 @@ impl ChatState {
 
         let vec = Self::dh_receiver(&sender_ephemeral, &identity_key, &sender_identity, &prekey, onetime_key);
         Self::new(identity_key, &rachet, vec)
+    }
+    pub fn move_sender(&mut self) -> (PublicKey, Otherkey) {
+        let key = self.senderChain.step(None);
+        (PublicKey::from(&self.rachet.our_keypair), key)
+    }
+    pub fn move_receiver(&mut self, new_public_key: PublicKey) -> Otherkey {
+        let receiver_dh = self.rachet.step(new_public_key);
+        let receiver_key = self.rootChain.step(Some(&receiver_dh));
+        self.receiverChain.set_key(receiver_key);
+        let sender_key = self.rootChain.step(Some(&self.rachet.calculate_dh()));
+        self.senderChain.set_key(sender_key);
+        self.receiverChain.step(None)
     }
 }
 
