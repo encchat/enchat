@@ -663,6 +663,7 @@ dependencies = [
  "byteorder",
  "digest 0.9.0",
  "rand_core 0.5.1",
+ "serde",
  "subtle",
  "zeroize",
 ]
@@ -4161,6 +4162,7 @@ checksum = "e5da623d8af10a62342bcbbb230e33e58a63255a58012f8653c578e54bab48df"
 dependencies = [
  "curve25519-dalek 3.2.0",
  "rand_core 0.6.4",
+ "serde",
  "zeroize",
 ]
 
