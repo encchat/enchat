@@ -1,14 +1,18 @@
 import { invoke } from '@tauri-apps/api';
 import { supabaseClient } from './supabase';
+import { base58_to_binary } from 'base58-js'
 
 const MAX_KEYS = 10
 
+export function decode_base58(encoded: string): Array<number> {
+    return Array.from(base58_to_binary(encoded))
+}
 
 /**
  * Class used for handling public keys
  */
 export abstract class Key {
-    private _key: String | null = null;
+    private _key: Array<number> | null = null;
 
     public get key() { return this._key }
     
@@ -20,7 +24,7 @@ export abstract class Key {
         const {data: {user}} = await supabaseClient.auth.getUser()
         const key = await ((user.id === userId && await this.shouldGenerate(userId)) ? this.generate(userId) : this.fetch(userId, user.id))
         // TODO: Handle nulls
-        this._key = key
+        this._key = key ?  decode_base58(key) : null
     }
 }
 
@@ -64,6 +68,8 @@ export class Prekey extends Key {
     async generate(userId: string): Promise<string> {
         console.debug('Generating new prekey')
         const {prekey, signature} = await invoke<PrekeySerialized>('request_prekey')
+        console.log(prekey)
+        console.log(signature)
         await supabaseClient.from('prekey').insert({
             id: userId,
             key: prekey,
@@ -82,7 +88,7 @@ export class Prekey extends Key {
 
 interface OnetimeKeys {
     id: number;
-    key: String 
+    key: string 
 }
 export class OnetimeKey extends Key {
     private _keysToGenerate: number = 0
@@ -103,15 +109,15 @@ export class OnetimeKey extends Key {
             .order('local_id', { ascending: false } )
             .limit(1)
         const lastKey = data?.length > 0 ? data[0].local_id : 0
-        const keys = await (await invoke<string[]>('request_onetime_keys', {keys: this._keysToGenerate, lastKey: lastKey}))
+        const keys = await (await invoke<OnetimeKeys[]>('request_onetime_keys', {keys: this._keysToGenerate, lastKey: lastKey}))
         const uploadPromise = keys.map((x, i) => supabaseClient.from('onetime-key').insert({
             user: userId,
-            key: x,
-            local_id: lastKey + i + 1
+            key: x.key,
+            local_id: x.id
         }))
         await Promise.all(uploadPromise)
         console.debug('Done generating onetime keys')
-        return keys[0]
+        return keys[0].key
     }
     async fetch(userId: string, callerId: string): Promise<string | null> {
         if (callerId == userId) return null
