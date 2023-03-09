@@ -10,6 +10,7 @@ mod encryption;
 mod keybundle;
 mod chat;
 mod message;
+mod store;
 
 extern crate pretty_env_logger;
 #[macro_use] extern crate log;
@@ -17,6 +18,7 @@ extern crate pretty_env_logger;
 
 use chat::WrappedChatState;
 use dotenv;
+use store::DatabaseState;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -29,6 +31,7 @@ fn main() {
     dotenv::dotenv().ok();
     tauri::Builder::default()
         .manage(WrappedChatState(Default::default()))
+        .manage(DatabaseState(Default::default()))
         .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey, enter_chat])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,10 +1,11 @@
 use std::sync::RwLock;
 
+use rusqlite::Connection;
 use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
-use crate::{keybundle::get_key, encryption::{x_key_from_b58, generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}};
+use crate::{encryption::{x_key_from_b58, generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState};
 
 
 #[derive(Debug)]
@@ -61,7 +62,7 @@ impl Default for Chain {
 
 pub struct ChatState {
     receiverIdentity: PublicKey,
-    ourIdentity: Key,
+    ourIdentity: IdentityKey,
     rootChain: Chain,
     senderChain: Chain,
     receiverChain: Chain,
@@ -70,13 +71,13 @@ pub struct ChatState {
 
 
 impl ChatState {
-    pub fn dh_receiver(sender_ephemeral: &PublicKey, identity_key: &Key, sender_identity: &PublicKey, prekey: &Key, onetime_key: Option<Key> ) -> Vec<u8> {
+    pub fn dh_receiver(sender_ephemeral: &PublicKey, identity_key: &Key, sender_identity: &PublicKey, prekey: &Key, onetime_key: Option<Onetime> ) -> Vec<u8> {
         let mut vec = Vec::with_capacity(32 * 4);
         vec.extend_from_slice(prekey.diffie_hellman(&sender_identity).as_bytes());
         vec.extend_from_slice(identity_key.diffie_hellman(&sender_ephemeral).as_bytes());
         vec.extend_from_slice(prekey.diffie_hellman(&sender_ephemeral).as_bytes());
         if let Some(onetime) = onetime_key {
-            vec.extend_from_slice(onetime.diffie_hellman(&sender_ephemeral).as_bytes());
+            vec.extend_from_slice(onetime.get_keypair().diffie_hellman(&sender_ephemeral).as_bytes());
         }
         vec
     }
@@ -90,7 +91,7 @@ impl ChatState {
         };
         vec
     }
-    pub fn new(ourIdentity: Key, initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
+    pub fn new(ourIdentity: IdentityKey, initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
         let output = kdf(initialDH);
         Self {
             rootChain: Chain { id: 0, input_key: output.0 },
@@ -101,30 +102,22 @@ impl ChatState {
             ourIdentity: ourIdentity
         }
     }
-    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>) -> Self {
-        let identity_b58 = get_key("identity", None).unwrap();
-        let identity_key = x_key_from_b58::<StaticSecret>(&identity_b58);
+    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection) -> Self {
+        let identity_key = IdentityKey::fetch(None, conn).unwrap();
         let ephemeral = generate_ephemeral();
-        let vec = Self::dh_sender(&ephemeral, &identity_key, &receiver_identity, &receiver_prekey, receiver_onetime);
+        let vec = Self::dh_sender(&ephemeral, &identity_key.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
         Self::new(identity_key, receiver_identity, vec)
     }
-    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey) -> Self {
-        let identity_b58 = get_key("identity", None).unwrap();
-        let identity_key = x_key_from_b58::<StaticSecret>(&identity_b58);
+    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection) -> Self {
+        let identity_key = IdentityKey::fetch(None, conn).unwrap();
         // TODO: Add ids
-        let prekey_b58 = get_key("prekey", None).unwrap();
-        let prekey = x_key_from_b58::<StaticSecret>(&prekey_b58);
+        let prekey = SignedKey::fetch(None, conn).unwrap();
         // TODO: Handle, may be a common case?
-        let onetime_key = if let Some(onetime_id) = initialData.onetime_key_id {
-            let onetime_b58 = get_key("onetime", Some(onetime_id)).unwrap();
-            Some(x_key_from_b58::<StaticSecret>(&onetime_b58))
-        } else {
-            None
-        };
+        let onetime_key = Onetime::fetch(initialData.onetime_key_id, conn).ok();
         let sender_identity = initialData.identity;
         let sender_ephemeral = initialData.ephemeral;
 
-        let vec = Self::dh_receiver(&sender_ephemeral, &identity_key, &sender_identity, &prekey, onetime_key);
+        let vec = Self::dh_receiver(&sender_ephemeral, &identity_key.get_keypair(), &sender_identity, &prekey.get_keypair(), onetime_key);
         Self::new(identity_key, &rachet, vec)
     }
     pub fn move_sender(&mut self) -> (PublicKey, Otherkey) {
@@ -152,12 +145,14 @@ pub struct ReceiverBundle {
 }
 
 #[tauri::command]
-pub fn enter_chat(chat_id: String, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>) {
+pub fn enter_chat(chat_id: String, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>) {
+    let conn_mutex = db_state.0.lock().unwrap();
+    let conn = conn_mutex.get_connection();
     let mut chat = state.0.write().unwrap();
     *chat = if let Some(message) = received_message {
-        Some(ChatState::initial_receiver(&message.initial, &message.rachet_key))
+        Some(ChatState::initial_receiver(&message.initial, &message.rachet_key, conn))
     } else if let Some(receiver_keys) = receiver_keys {
-        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime))
+        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn))
     } else {
         None
     };

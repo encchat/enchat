@@ -30,6 +30,11 @@ log = "0.4"
 x25519-dalek = { version = "2.0.0-pre.1", features = ["serde"] }
 hkdf = "^0.12.3"
 sha2 = "^0.10.6"
+rusqlite = { version = "0.28.0", features = [ "bundled-sqlcipher" ] }
+curve25519-dalek = "4.0.0-rc.1"
+subtle = "^2.4"
+rusqlite_migration = "^1.0.1"
+dirs = "4.0.0"
 [features]
 # by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL

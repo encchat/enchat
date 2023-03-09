@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use tauri::State;
 use x25519_dalek::{SharedSecret, PublicKey};
 
-use crate::chat::ChatState;
+use crate::chat::{ChatState, WrappedChatState};
 
 
 #[derive(Deserialize)]
@@ -20,4 +21,12 @@ pub struct Message {
     pub rachet_key: PublicKey,
     pub initial: InitialData,
     pub ciphertext: String,
+}
+
+pub fn send(message: String, state: State<WrappedChatState>) {
+    let mut chat_option = state.0.write().unwrap();
+    if chat_option.is_none(){
+        return;
+    }
+    // let (public, encryption) = (*chat_option).unwrap().move_sender();
 }
