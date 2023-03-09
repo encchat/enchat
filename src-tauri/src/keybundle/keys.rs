@@ -167,7 +167,7 @@ impl Serialize for Onetime {
     where
         S: serde::Serializer {
         let mut s = serializer.serialize_struct("onetime", 2)?;
-        s.serialize_field("key", &self.get_public_key().as_bytes())?;
+        s.serialize_field("key", &to_base58(&self.get_public_key().as_bytes()))?;
         s.serialize_field("id", &self.id)?;
         s.end()
     }
