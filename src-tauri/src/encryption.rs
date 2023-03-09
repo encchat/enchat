@@ -5,7 +5,7 @@ use hkdf::Hkdf;
 use rand::rngs::OsRng;
 use ed25519_dalek::{Signature, SigningKey, Signer, PUBLIC_KEY_LENGTH};
 use sha2::Sha256;
-use x25519_dalek::{StaticSecret, SharedSecret};
+use x25519_dalek::{StaticSecret};
 
 pub type Key = StaticSecret;
 pub type PublicKey = x25519_dalek::PublicKey;
@@ -16,23 +16,10 @@ pub fn get_rng() -> OsRng {
     OsRng{}
 }
 
-pub fn generate_key() -> SigningKey {
-    let mut rng = get_rng();
-    SigningKey::generate(&mut rng)
-}
 
 pub fn generate_ephemeral() -> StaticSecret {
     let rng = get_rng();
     StaticSecret::new(rng)
-}
-
-pub fn sign(keypair: &SigningKey, message: &[u8]) -> Signature {
-    keypair.sign(message)
-}
-pub fn x_key_from_b58<K: From<[u8; PUBLIC_KEY_LENGTH]>>(b58:&str) -> K {
-    let mut output: [u8; PUBLIC_KEY_LENGTH] = [0x0; PUBLIC_KEY_LENGTH];
-    bs58::decode(b58).into(&mut output).unwrap();
-    K::from(output)
 }
 
 pub struct KdfOutput(pub RootKey, pub Otherkey);
