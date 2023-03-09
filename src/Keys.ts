@@ -92,7 +92,10 @@ interface OnetimeKeys {
 }
 export class OnetimeKey extends Key {
     private _keysToGenerate: number = 0
-
+    private _keyId: number = 0;
+    public get id(): number {
+        return this._keyId
+    }
     async shouldGenerate(userId: string): Promise<boolean> {
         const remainingKeys = await supabaseClient.from('onetime-key')
             .select('*', {count: 'exact'})
@@ -123,7 +126,8 @@ export class OnetimeKey extends Key {
         if (callerId == userId) return null
         console.debug(`Fetching onetime key for user ${userId}`)
         const {data, error} = await supabaseClient.rpc('get_onetime_key', {user_id: userId});
-        return data
+        this._keyId = data[0].local_id
+        return data[0].key
     }  
 }
 export const populateKey = async <K extends Key>(userId: string, type: { new(): K; }): Promise<K>  =>  {

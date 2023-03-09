@@ -13,17 +13,14 @@ export interface Database {
         Row: {
           created_at: string | null
           id: string
-          initial_message: Json
         }
         Insert: {
           created_at?: string | null
-          id: string
-          initial_message: Json
+          id?: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          initial_message?: Json
         }
       }
       "chat-message": {
@@ -32,18 +29,21 @@ export interface Database {
           content: Json
           created_at: string | null
           id: number
+          sender_id: string
         }
         Insert: {
           chat_id: string
           content: Json
           created_at?: string | null
           id?: number
+          sender_id: string
         }
         Update: {
           chat_id?: string
           content?: Json
           created_at?: string | null
           id?: number
+          sender_id?: string
         }
       }
       "chat-party": {
@@ -161,7 +161,21 @@ export interface Database {
         Args: {
           user_id: string
         }
-        Returns: string
+        Returns: {
+          created_at: string | null
+          id: number
+          key: string
+          local_id: number
+          used: boolean | null
+          user: string
+        }[]
+      }
+      is_member_of: {
+        Args: {
+          user_id: string
+          chat_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

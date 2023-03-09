@@ -12,33 +12,52 @@ import { onMount } from "svelte";
 export let chatId: string;
 export let user: User.User
 
+
 const isInitial = async () => {
     const messages = await supabaseClient.from('chat-message').select('*', {count: "estimated"}).eq('chat_id', chatId)
     return messages.count === 0
 }
 
-const intialMessage = async () => {
-    console.log(chatId)
+const initialChat = async () => {
     const {data, error} = await supabaseClient.from('chat-party')
         .select('user')
         .eq('chat', chatId)
         .neq('user', user.id)
+        .limit(1)
         .single()
-    console.log(data)
-    console.log(error)
     const receiverIdentity = await populateKey(data.user, IdentityKey);
     const receiverPrekey = await populateKey(data.user, Prekey)
     const receiverOnetime = await populateKey(data.user, OnetimeKey)
-    const res = await invoke('calculate_psk', {
-        receiverPrekey: receiverPrekey.key,
-        receiverIdentity: receiverIdentity.key,
-        receiverOnetime: receiverOnetime.key
+    const res = await invoke('enter_chat', {
+        chatId,
+        receiverKeys: {
+            receiver_prekey: receiverPrekey.key,
+            receiver_identity: receiverIdentity.key,
+            receiver_onetime: receiverOnetime.key,
+            receiver_onetime_id: receiverOnetime.id,
+            receiver_prekey_id: 1
+        }
     })
-    console.log(res)
+}
+const initialReceivedMessage = async () => {
+    const {data} = await supabaseClient.from('chat-message').select('*', { count: 'estimated'})
+        .eq('chat_id', chatId)
+        .eq('')
 }
 const sendMessage = async () => {
     if (await isInitial())
-        await intialMessage()
+        await initialChat()
+    const res = await invoke('send', {
+        chatId,
+        message
+    })
+    console.log(JSON.stringify(res))
+    await supabaseClient.from('chat-message').insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        content: JSON.stringify(res)
+    })
+    console.log(res)
 }
 
 let message: string = ""
