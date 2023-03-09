@@ -10,7 +10,7 @@ use super::{to_base58, signature::{calculate_signature, Signature}};
 
 // Trait for user-managed keys stored in database
 pub trait StoredKey<'a> {
-    fn fetch(id: Option<usize>, connection: &Connection) -> rusqlite::Result<Self> where Self: Sized;
+    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> where Self: Sized;
     fn store(&self, connection: &Connection) -> rusqlite::Result<usize>;
     fn generate() -> Self;
 }
@@ -24,7 +24,7 @@ pub struct IdentityKey(Key);
 
 
 impl <'a> StoredKey<'a> for IdentityKey {
-    fn fetch(id: Option<usize>, connection: &Connection) -> rusqlite::Result<Self> {
+    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> {
         // TODO: Should we store multiple identites? I'm not sure
         connection.query_row("SELECT key FROM identity LIMIT 1", params![], |row| {
             let blob: Vec<u8> = row.get(0)?;
@@ -66,7 +66,7 @@ impl SignedKey {
 
 // TODO: DRY
 impl <'a> StoredKey<'a> for SignedKey {
-    fn fetch(id: Option<usize>, connection: &Connection) -> rusqlite::Result<Self> {
+    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> {
         // TODO: Handle renewal
         connection.query_row("SELECT key FROM signed LIMIT 1", params![], |row| {
             let blob: Vec<u8> = row.get(0)?;
@@ -109,7 +109,7 @@ impl Onetime {
 }
 
 impl <'a> StoredKey<'a> for Onetime {
-    fn fetch(id: Option<usize>, connection: &Connection) -> rusqlite::Result<Self> {
+    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> {
         // TODO: Handle renewal
         connection.query_row("SELECT key, id FROM onetime WHERE id = ?1 LIMIT 1", params![id], |row| {
             let blob: Vec<u8> = row.get(0)?;

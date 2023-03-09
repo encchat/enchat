@@ -1,11 +1,11 @@
-use std::sync::RwLock;
+use std::sync::{RwLock, Mutex};
 
 use rusqlite::Connection;
 use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
-use crate::{encryption::{x_key_from_b58, generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState};
+use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState};
 
 
 #[derive(Debug)]
@@ -62,6 +62,7 @@ impl Default for Chain {
 
 pub struct ChatState {
     receiverIdentity: PublicKey,
+    pub receiverUsedKeys: Option<InitialData>,
     ourIdentity: IdentityKey,
     rootChain: Chain,
     senderChain: Chain,
@@ -99,30 +100,35 @@ impl ChatState {
             senderChain: Default::default(),
             receiverChain: Default::default(),
             receiverIdentity: initialRachetKey.clone(),
-            ourIdentity: ourIdentity
+            ourIdentity: ourIdentity,
+            receiverUsedKeys: None
         }
     }
-    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection) -> Self {
+    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection, prekey_id: u32, onetime_key_id: Option<u32>,) -> Self {
         let identity_key = IdentityKey::fetch(None, conn).unwrap();
-        let ephemeral = generate_ephemeral();
-        let vec = Self::dh_sender(&ephemeral, &identity_key.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
-        Self::new(identity_key, receiver_identity, vec)
+        let ephemeral = IdentityKey::generate();
+        let vec = Self::dh_sender(&ephemeral.get_keypair(), &identity_key.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
+        let mut new_self = Self::new(identity_key, receiver_identity, vec);
+        new_self.receiverUsedKeys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
+        new_self
     }
-    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection) -> Self {
+    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey) -> Self {
         let identity_key = IdentityKey::fetch(None, conn).unwrap();
         // TODO: Add ids
         let prekey = SignedKey::fetch(None, conn).unwrap();
         // TODO: Handle, may be a common case?
         let onetime_key = Onetime::fetch(initialData.onetime_key_id, conn).ok();
-        let sender_identity = initialData.identity;
         let sender_ephemeral = initialData.ephemeral;
 
         let vec = Self::dh_receiver(&sender_ephemeral, &identity_key.get_keypair(), &sender_identity, &prekey.get_keypair(), onetime_key);
         Self::new(identity_key, &rachet, vec)
     }
-    pub fn move_sender(&mut self) -> (PublicKey, Otherkey) {
+    pub fn is_initial(&self) -> bool {
+        self.rootChain.id == 0u32 && self.senderChain.id == 0u32
+    }
+    pub fn move_sender(&mut self) -> (PublicKey, Otherkey, u32) {
         let key = self.senderChain.step(None);
-        (PublicKey::from(&self.rachet.our_keypair), key)
+        (PublicKey::from(&self.rachet.our_keypair), key, self.senderChain.id)
     }
     pub fn move_receiver(&mut self, new_public_key: PublicKey) -> Otherkey {
         let receiver_dh = self.rachet.step(new_public_key);
@@ -135,24 +141,26 @@ impl ChatState {
 }
 
 
-pub struct WrappedChatState(pub RwLock<Option<ChatState>>);
+pub struct WrappedChatState(pub Mutex<Option<ChatState>>);
 
 #[derive(Deserialize)]
 pub struct ReceiverBundle {
     pub receiver_identity: PublicKey,
     pub receiver_prekey: PublicKey,
-    pub receiver_onetime: Option<PublicKey>
+    pub receiver_onetime: Option<PublicKey>,
+    pub receiver_onetime_id: Option<u32>,
+    pub receiver_prekey_id: u32,
 }
 
 #[tauri::command]
-pub fn enter_chat(chat_id: String, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>) {
+pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>) {
     let conn_mutex = db_state.0.lock().unwrap();
     let conn = conn_mutex.get_connection();
-    let mut chat = state.0.write().unwrap();
+    let mut chat = state.0.lock().unwrap();
     *chat = if let Some(message) = received_message {
-        Some(ChatState::initial_receiver(&message.initial, &message.rachet_key, conn))
+        Some(ChatState::initial_receiver(&message.header.initial.unwrap(), &message.header.rachet_key, conn, sender_identity.unwrap()))
     } else if let Some(receiver_keys) = receiver_keys {
-        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn))
+        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id))
     } else {
         None
     };
