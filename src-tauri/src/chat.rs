@@ -5,7 +5,7 @@ use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
-use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState};
+use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}};
 
 
 #[derive(Debug)]
@@ -104,20 +104,20 @@ impl ChatState {
             receiverUsedKeys: None
         }
     }
-    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection, prekey_id: u32, onetime_key_id: Option<u32>,) -> Self {
-        let identity_key = IdentityKey::fetch(None, conn).unwrap();
+    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection, prekey_id: u32, onetime_key_id: Option<u32>, user: &User) -> Self {
+        let identity_key = IdentityKey::fetch(None, conn, user).unwrap();
         let ephemeral = IdentityKey::generate();
         let vec = Self::dh_sender(&ephemeral.get_keypair(), &identity_key.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
         let mut new_self = Self::new(identity_key, receiver_identity, vec);
         new_self.receiverUsedKeys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
         new_self
     }
-    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey) -> Self {
-        let identity_key = IdentityKey::fetch(None, conn).unwrap();
+    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey, user: &User) -> Self {
+        let identity_key = IdentityKey::fetch(None, conn, user).unwrap();
         // TODO: Add ids
-        let prekey = SignedKey::fetch(None, conn).unwrap();
+        let prekey = SignedKey::fetch(None, conn, user).unwrap();
         // TODO: Handle, may be a common case?
-        let onetime_key = Onetime::fetch(initialData.onetime_key_id, conn).ok();
+        let onetime_key = Onetime::fetch(initialData.onetime_key_id, conn, user).ok();
         let sender_ephemeral = initialData.ephemeral;
 
         let vec = Self::dh_receiver(&sender_ephemeral, &identity_key.get_keypair(), &sender_identity, &prekey.get_keypair(), onetime_key);
@@ -153,14 +153,15 @@ pub struct ReceiverBundle {
 }
 
 #[tauri::command]
-pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>) {
+pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) {
+    let user = user_state.0.lock().unwrap();
     let conn_mutex = db_state.0.lock().unwrap();
     let conn = conn_mutex.get_connection();
     let mut chat = state.0.lock().unwrap();
     *chat = if let Some(message) = received_message {
-        Some(ChatState::initial_receiver(&message.header.initial.unwrap(), &message.header.rachet_key, conn, sender_identity.unwrap()))
+        Some(ChatState::initial_receiver(&message.header.initial.unwrap(), &message.header.rachet_key, conn, sender_identity.unwrap(), &user))
     } else if let Some(receiver_keys) = receiver_keys {
-        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id))
+        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id, &user))
     } else {
         None
     };

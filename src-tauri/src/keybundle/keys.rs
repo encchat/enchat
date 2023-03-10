@@ -4,14 +4,14 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize, ser::SerializeStruct};
 use x25519_dalek::StaticSecret;
 
-use crate::encryption::{PublicKey, Key, generate_ephemeral, get_rng};
+use crate::{encryption::{PublicKey, Key, generate_ephemeral, get_rng, Otherkey}, user::User};
 
 use super::{to_base58, signature::{calculate_signature, Signature}};
 
 // Trait for user-managed keys stored in database
 pub trait StoredKey<'a> {
-    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> where Self: Sized;
-    fn store(&self, connection: &Connection) -> rusqlite::Result<usize>;
+    fn fetch(id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> where Self: Sized;
+    fn store(&self, connection: &Connection, user: &User) -> rusqlite::Result<usize>;
     fn generate() -> Self;
 }
 pub trait ManagedKey {
@@ -24,9 +24,9 @@ pub struct IdentityKey(Key);
 
 
 impl <'a> StoredKey<'a> for IdentityKey {
-    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> {
+    fn fetch(id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
         // TODO: Should we store multiple identites? I'm not sure
-        connection.query_row("SELECT key FROM identity LIMIT 1", params![], |row| {
+        connection.query_row("SELECT key FROM identity WHERE user_id = ? LIMIT 1", params![user.user_id], |row| {
             let blob: Vec<u8> = row.get(0)?;
             // TODO Handle gracefully
             let blob_keyed: [u8; 32] = blob.try_into().unwrap();
@@ -34,8 +34,8 @@ impl <'a> StoredKey<'a> for IdentityKey {
         })
     }
 
-    fn store(&self, connection: &Connection) -> rusqlite::Result<usize>{
-        connection.execute("INSERT INTO identity(key) VALUES (?1)", params![self.0.to_bytes()])
+    fn store(&self, connection: &Connection, user: &User) -> rusqlite::Result<usize>{
+        connection.execute("INSERT INTO identity(key, user_id) VALUES (?, ?)", params![self.0.to_bytes(), user.user_id.as_ref().unwrap()])
     }
 
     fn generate() -> Self {
@@ -66,9 +66,9 @@ impl SignedKey {
 
 // TODO: DRY
 impl <'a> StoredKey<'a> for SignedKey {
-    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> {
+    fn fetch(id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
         // TODO: Handle renewal
-        connection.query_row("SELECT key FROM signed LIMIT 1", params![], |row| {
+        connection.query_row("SELECT key FROM signed WHERE user_id = ? LIMIT 1", params![user.user_id], |row| {
             let blob: Vec<u8> = row.get(0)?;
             // TODO Handle gracefully
             let blob_keyed: [u8; 32] = blob.try_into().unwrap();
@@ -76,8 +76,8 @@ impl <'a> StoredKey<'a> for SignedKey {
         })
     }
 
-    fn store(&self, connection: &Connection) -> rusqlite::Result<usize>{
-        connection.execute("INSERT INTO signed(key) VALUES (?1)", params![self.0.to_bytes()])
+    fn store(&self, connection: &Connection, user: &User) -> rusqlite::Result<usize>{
+        connection.execute("INSERT INTO signed(key, user_id) VALUES (?, ?)", params![self.0.to_bytes(), user.user_id.as_ref().unwrap()])
     }
 
     fn generate() -> Self {
@@ -109,9 +109,10 @@ impl Onetime {
 }
 
 impl <'a> StoredKey<'a> for Onetime {
-    fn fetch(id: Option<u32>, connection: &Connection) -> rusqlite::Result<Self> {
+    fn fetch(id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
         // TODO: Handle renewal
-        connection.query_row("SELECT key, id FROM onetime WHERE id = ?1 LIMIT 1", params![id], |row| {
+        connection.query_row("SELECT key, id FROM onetime WHERE id = ? AND user_id = ? LIMIT 1", params![id, user.user_id], |row| {
+            debug!("found onetime key");
             let blob: Vec<u8> = row.get(0)?;
             let id: usize = row.get(1)?;
             // TODO Handle gracefully
@@ -123,8 +124,8 @@ impl <'a> StoredKey<'a> for Onetime {
         })
     }
 
-    fn store(&self, connection: &Connection) -> rusqlite::Result<usize>{
-        connection.execute("INSERT INTO signed(key) VALUES (?1)", params![self.key.to_bytes()])
+    fn store(&self, connection: &Connection, user: &User) -> rusqlite::Result<usize> {
+        connection.execute("INSERT INTO signed(key, user_id) VALUES (?, ?)", params![self.key.to_bytes(), user.user_id.as_ref().unwrap()])
     }
 
     fn generate() -> Self {

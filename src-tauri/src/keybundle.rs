@@ -5,7 +5,7 @@ use tauri::State;
 mod keys;
 mod signature;
 
-use crate::{store::DatabaseState};
+use crate::{store::DatabaseState, user::UserState};
 
 pub use self::{keys::{IdentityKey, StoredKey, SignedKey, ManagedKey, Onetime}, signature::Signature};
 pub struct Prekey(pub SignedKey, pub Signature);
@@ -26,34 +26,37 @@ pub fn to_base58<K: AsRef<[u8]>>(bytes: K) -> String {
 
 
 #[tauri::command]
-pub fn request_onetime_keys(keys: usize, last_key: usize, db_state: State<DatabaseState>) -> Result<Vec<Onetime>, ()> {
+pub fn request_onetime_keys(keys: usize, last_key: usize, db_state: State<DatabaseState>, user_state: State<UserState>) -> Result<Vec<Onetime>, ()> {
+    let user = user_state.0.lock().unwrap();
     let mut conn_mutex = db_state.0.lock().unwrap();
     let conn = conn_mutex.get_connection_mut();
     let mut onetime_keys: Vec<Onetime> = Vec::with_capacity(keys);
     let tx = conn.transaction().unwrap();
     for i in 0..keys {
         let onetime = Onetime::generate_id(last_key + 1 + i);
-        onetime.store(&*tx);
+        onetime.store(&*tx, &user);
         onetime_keys.push(onetime);
     }
     Ok(onetime_keys)
 }
 
 #[tauri::command]
-pub fn request_identity_key(db_state: State<DatabaseState>) -> Result<IdentityKey, ()> {
+pub fn request_identity_key(db_state: State<DatabaseState>, user_state: State<UserState>) -> Result<IdentityKey, ()> {
+    let user = user_state.0.lock().unwrap();
     let conn_mutex = db_state.0.lock().unwrap();
     let conn = conn_mutex.get_connection();
     let id = IdentityKey::generate();
-    id.store(conn).unwrap();
+    id.store(conn, &user).unwrap();
     Ok(id)
 }
 #[tauri::command]
-pub fn request_prekey(db_state: State<DatabaseState>) -> Result<Prekey, &'static str> {
+pub fn request_prekey(db_state: State<DatabaseState>, user_state: State<UserState>) -> Result<Prekey, &'static str> {
+    let user = user_state.0.lock().unwrap();
     let conn_mutex = db_state.0.lock().unwrap();
     let conn = conn_mutex.get_connection();
-    let identity = IdentityKey::fetch(None, conn).unwrap();
+    let identity = IdentityKey::fetch(None, conn, &user).unwrap();
     let prekey = SignedKey::generate();
-    prekey.store(conn);
+    prekey.store(conn, &user);
     let signature = prekey.signature(&identity.get_keypair());
     Ok(Prekey(prekey, signature))
 }
