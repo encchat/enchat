@@ -13,12 +13,12 @@ export let chatId: string;
 export let user: User.User
 
 
-const isInitial = async () => {
+const isInitialReceiver = async () => {
     const messages = await supabaseClient.from('chat-message').select('*', {count: "estimated"}).eq('chat_id', chatId)
-    return messages.count === 0
+    console.log(messages)
+    return messages.count > 0
 }
-
-const initialChat = async () => {
+const initialSender = async () => {
     const {data, error} = await supabaseClient.from('chat-party')
         .select('user')
         .eq('chat', chatId)
@@ -38,15 +38,73 @@ const initialChat = async () => {
             receiver_prekey_id: 1
         }
     })
+
 }
-const initialReceivedMessage = async () => {
-    const {data} = await supabaseClient.from('chat-message').select('*', { count: 'estimated'})
+
+const initialReceiver = async () => {
+    const firstMessage = await supabaseClient.from('chat-message').select('*').eq('chat_id', chatId).order('created_at', { ascending: true }).limit(1)
+    console.log(firstMessage)
+    const {data, error} = await supabaseClient.from('chat-party')
+        .select('user')
+        .eq('chat', chatId)
+        .neq('user', user.id)
+        .limit(1)
+        .single()
+    const senderIdentity = await populateKey(data.user, IdentityKey);
+    console.log(senderIdentity)
+    const res = await invoke('enter_chat', {
+        chatId,
+        senderIdentity: senderIdentity.key,
+        receivedMessage: JSON.parse(firstMessage.data[0].content)
+    })
+}
+
+interface MessageEntry {
+    id: string;
+    content: string,
+    sender_id: string;
+}
+
+interface DecryptedMessage {
+    text: string
+}
+
+const decryptMessages = async (message: MessageEntry): Promise<DecryptedMessage> => {
+    try {
+        const parsed = JSON.parse(message.content)
+        let decryptedBytes = await invoke<Array<number>>('try_decrypt', {
+            chatId,
+            received: message.sender_id != user.id,
+            message: parsed,
+        })
+        if (!decryptedBytes && message.sender_id != user.id)
+            decryptedBytes = await invoke<Array<number>>('receive', {
+                chatId,
+                message: parsed,
+            })
+        console.log(decryptedBytes)
+        const text = new TextDecoder().decode(Uint8Array.from(decryptedBytes))
+        console.log(text)
+        return {
+            text
+        }
+    } catch (err) {
+        console.error(err)
+        return {
+            text: 'Decryption failed'
+        }
+    }
+}
+const getMessages = async () => {
+    const messages =  await supabaseClient.from('chat-message')
+        .select('sender_id, content, id')
         .eq('chat_id', chatId)
-        .eq('')
+        .order("created_at", {ascending: true});
+    for (const message of messages.data) {
+        decryptMessages(message)
+    }
 }
 const sendMessage = async () => {
-    if (await isInitial())
-        await initialChat()
     const res = await invoke('send', {
         chatId,
         message
@@ -57,10 +115,19 @@ const sendMessage = async () => {
         sender_id: user.id,
         content: JSON.stringify(res)
     })
-    console.log(res)
 }
 
 let message: string = ""
+
+onMount(async () => {
+    if (!await invoke('reenter_chat', {chatId: chatId})) {
+        if (await isInitialReceiver())
+            await initialReceiver()
+        else await initialSender()
+            
+    }
+    getMessages()
+})
 
 </script>
 
