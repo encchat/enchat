@@ -12,6 +12,8 @@ mod chat;
 mod message;
 mod store;
 mod user;
+#[macro_use]
+mod helpers;
 
 extern crate pretty_env_logger;
 #[macro_use] extern crate log;
