@@ -98,7 +98,7 @@ impl ChatState {
         };
         vec
     }
-    pub fn new(ourIdentity: IdentityKey, initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
+    pub fn new(initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
         let output = kdf(initialDH);
         Self {
             rootChain: Chain { id: 0, input_key: output.0 },
@@ -112,8 +112,10 @@ impl ChatState {
         let identity_key = IdentityKey::fetch(None, conn, user).unwrap();
         let ephemeral = IdentityKey::generate();
         let vec = Self::dh_sender(&ephemeral.get_keypair(), &identity_key.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
-        let mut new_self = Self::new(identity_key, receiver_identity, vec);
+        let mut new_self = Self::new(receiver_identity, vec);
         new_self.receiverUsedKeys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
+        let sender_key = new_self.rootChain.step(Some(&new_self.rachet.calculate_dh()));
+        new_self.senderChain.set_key(sender_key);
         new_self
     }
     pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey, user: &User) -> Self {
@@ -125,7 +127,9 @@ impl ChatState {
         let sender_ephemeral = initialData.ephemeral;
 
         let vec = Self::dh_receiver(&sender_ephemeral, &identity_key.get_keypair(), &sender_identity, &prekey.get_keypair(), onetime_key);
-        Self::new(identity_key, &rachet, vec)
+        let mut new_self = Self::new(&rachet, vec);
+        new_self.rachet.our_keypair = identity_key.get_keypair().clone();
+        new_self
     }
     pub fn is_initial(&self) -> bool {
         self.rootChain.id == 0u32 && self.senderChain.id == 0u32

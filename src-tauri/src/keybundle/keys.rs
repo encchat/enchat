@@ -20,6 +20,7 @@ pub trait ManagedKey {
     fn get_keypair(& self) -> & Key;
 }
 
+#[derive(Clone)]
 pub struct IdentityKey(Key);
 
 
@@ -125,7 +126,7 @@ impl <'a> StoredKey<'a> for Onetime {
     }
 
     fn store(&self, connection: &Connection, user: &User) -> rusqlite::Result<usize> {
-        connection.execute("INSERT INTO onetime(key, user_id) VALUES (?, ?)", params![self.key.to_bytes(), user.user_id.as_ref().unwrap()])
+        connection.execute("INSERT INTO onetime(key, user_id, id) VALUES (?, ?, ?)", params![self.key.to_bytes(), user.user_id.as_ref().unwrap(), self.id])
     }
 
     fn generate() -> Self {
