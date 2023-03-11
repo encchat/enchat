@@ -7,7 +7,7 @@ mod signature;
 
 use crate::{store::DatabaseState, user::UserState};
 
-pub use self::{keys::{IdentityKey, StoredKey, SignedKey, ManagedKey, Onetime}, signature::Signature};
+pub use self::{keys::{IdentityKey, StoredKey, SignedKey, ManagedKey, Onetime, save_message_key, read_message_key, MessageKeyType}, signature::Signature};
 pub struct Prekey(pub SignedKey, pub Signature);
 impl Serialize for Prekey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -28,13 +28,12 @@ pub fn to_base58<K: AsRef<[u8]>>(bytes: K) -> String {
 #[tauri::command]
 pub fn request_onetime_keys(keys: usize, last_key: usize, db_state: State<DatabaseState>, user_state: State<UserState>) -> Result<Vec<Onetime>, ()> {
     let user = user_state.0.lock().unwrap();
-    let mut conn_mutex = db_state.0.lock().unwrap();
-    let conn = conn_mutex.get_connection_mut();
+    let conn_mutex = db_state.0.lock().unwrap();
+    let conn = conn_mutex.get_connection();
     let mut onetime_keys: Vec<Onetime> = Vec::with_capacity(keys);
-    let tx = conn.transaction().unwrap();
     for i in 0..keys {
         let onetime = Onetime::generate_id(last_key + 1 + i);
-        onetime.store(&*tx, &user);
+        onetime.store(&conn, &user).unwrap();
         onetime_keys.push(onetime);
     }
     Ok(onetime_keys)

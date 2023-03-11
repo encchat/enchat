@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Mutex, fs::create_dir, path::PathBuf};
 use keyring::Entry;
 use rusqlite::{Connection, params};
 
-use crate::{encryption::{KdfOutput, get_rng, kdf}};
+use crate::{encryption::{KdfOutput, get_rng, kdf}, chat::ChatState, user::User};
 use rand::{RngCore};
 
 use self::migrations::make_migrations;
@@ -75,6 +75,7 @@ impl Database {
         let path = database_path();
         let key = Self::get_database_key();
         let mut conn = Connection::open(path)?;
+        println!("{}", format!("PRAGMA key = \"x'{}'\"", &key));
         conn.query_row(&format!("PRAGMA key = \"x'{}'\"", &key), params![], |_row| {
             Ok(())
         })?;
@@ -99,6 +100,7 @@ impl Default for Database {
 
 pub struct DatabaseState(pub Mutex<Database>);
 
+
 mod tests {
     #[test]
     fn database_key_is_64_hex_string() {
@@ -110,3 +112,4 @@ mod tests {
         }
     }
 }
+

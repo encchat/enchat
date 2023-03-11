@@ -4,7 +4,7 @@
 )]
 
 
-use crate::{keybundle::{request_onetime_keys, request_prekey, request_identity_key}, chat::{enter_chat}, message::{send, receive}, user::login};
+use crate::{keybundle::{request_onetime_keys, request_prekey, request_identity_key}, chat::{enter_chat, reenter_chat}, message::{send, receive, try_decrypt}, user::login};
 
 mod encryption;
 mod keybundle;
@@ -37,7 +37,7 @@ fn main() {
         .manage(WrappedChatState(Default::default()))
         .manage(DatabaseState(Default::default()))
         .manage(UserState(Default::default()))
-        .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey, enter_chat, receive, send, login])
+        .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey, enter_chat, reenter_chat, receive, send, login, try_decrypt])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

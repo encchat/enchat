@@ -125,7 +125,7 @@ impl <'a> StoredKey<'a> for Onetime {
     }
 
     fn store(&self, connection: &Connection, user: &User) -> rusqlite::Result<usize> {
-        connection.execute("INSERT INTO signed(key, user_id) VALUES (?, ?)", params![self.key.to_bytes(), user.user_id.as_ref().unwrap()])
+        connection.execute("INSERT INTO onetime(key, user_id) VALUES (?, ?)", params![self.key.to_bytes(), user.user_id.as_ref().unwrap()])
     }
 
     fn generate() -> Self {
@@ -172,4 +172,31 @@ impl Serialize for Onetime {
         s.serialize_field("id", &self.id)?;
         s.end()
     }
+}
+
+
+pub enum MessageKeyType {
+    Receiving,
+    Sending
+}
+
+pub fn save_message_key(message_key_type: MessageKeyType, message_id: u32, key: &Otherkey, user: &User, chat_id: &str, connection: &Connection) {
+    let received = matches!(message_key_type, MessageKeyType::Receiving);
+    connection.execute("INSERT INTO message_key(key, chat_id, user_id, received, local_id) VALUES (?, ?, ?, ?, ?)", params![
+        key,
+        chat_id,
+        user.user_id,
+        received,
+        message_id
+    ]);
+}
+
+pub fn read_message_key(message_key_type: MessageKeyType, message_id: u32, chat_id: &str, user: &User, connection: &Connection) -> Option<Otherkey> {
+    let received = matches!(message_key_type, MessageKeyType::Receiving);
+    connection.query_row("SELECT key FROM message_key WHERE received = ? AND local_id = ? AND user_id = ? AND chat_id = ? LIMIT 1", params![
+        received, message_id, user.user_id, chat_id
+    ], |row| {
+        let key_vec: Vec<u8> = row.get(0)?;
+        Ok(key_vec.try_into().unwrap())
+    }).ok()
 }

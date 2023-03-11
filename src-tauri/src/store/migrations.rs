@@ -23,7 +23,7 @@ pub fn make_migrations(connection: &mut Connection) {
         "),
         M::up("
         CREATE TABLE message_key(
-            id INTEGER PRIMARY KEY NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             chat_id TEXT NOT NULL,
             key BLOB NOT NULL,
             received BOOL DEFAULT FALSE NOT NULL
@@ -34,7 +34,20 @@ pub fn make_migrations(connection: &mut Connection) {
         M::up("ALTER TABLE onetime ADD COLUMN user_id TEXT NOT NULL; CREATE INDEX onetime_user ON onetime(user_id);"),
         M::up("ALTER TABLE message_key ADD COLUMN user_id TEXT NOT NULL; CREATE INDEX message_key_user ON message_key(user_id);"),
         M::up("ALTER TABLE message_key ADD COLUMN local_id INTEGER NOT NULL; CREATE INDEX message_key_local_id ON message_key(local_id);"),
-        M::up("CREATE INDEX message_key_chat_index ON message_key(chat_id)")
+        M::up("CREATE INDEX message_key_chat_index ON message_key(chat_id)"),
+        M::up("CREATE TABLE rachet_state(
+            chat_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            diffie_public_bytes BLOB NOT NULL,
+            diffie_private_bytes BLOB NOT NULL,
+            root_input_bytes BLOB NOT NULL,
+            root_id INTEGER NOT NULL,
+            sender_input_bytes BLOB NOT NULL,
+            sender_id INTEGER NOT NULL,
+            receiver_input_bytes BLOB NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            PRIMARY KEY (chat_id, user_id)
+        );")
     ]);
     migration.to_latest(connection).unwrap();
 }

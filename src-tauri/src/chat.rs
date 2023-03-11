@@ -1,14 +1,22 @@
 use std::sync::{RwLock, Mutex};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, named_params, params, Row};
 use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
-use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}};
+use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}, with_state};
 
+fn row_to_chain(row: &Row, chain_name: &str) -> rusqlite::Result<Chain> {
+    let input_key: Vec<u8> = row.get(format!("{}_input_bytes", &chain_name).as_ref())?;
+    let chain = Chain {
+        input_key: input_key.try_into().unwrap(),
+        id: row.get(format!("{}_id", &chain_name).as_ref())?
+    };
+    Ok(chain)
+} 
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Chain {
     id: u32,
     input_key: RootKey,
@@ -61,9 +69,7 @@ impl Default for Chain {
 }
 
 pub struct ChatState {
-    receiverIdentity: PublicKey,
     pub receiverUsedKeys: Option<InitialData>,
-    ourIdentity: IdentityKey,
     rootChain: Chain,
     senderChain: Chain,
     receiverChain: Chain,
@@ -99,8 +105,6 @@ impl ChatState {
             rachet: DHRachet::new(initialRachetKey.clone()),
             senderChain: Default::default(),
             receiverChain: Default::default(),
-            receiverIdentity: initialRachetKey.clone(),
-            ourIdentity: ourIdentity,
             receiverUsedKeys: None
         }
     }
@@ -138,6 +142,58 @@ impl ChatState {
         self.senderChain.set_key(sender_key);
         self.receiverChain.step(None)
     }
+    pub fn save(&self, user: &User, connection: &Connection, chat_id: &str) -> rusqlite::Result<usize> {
+        let dh_public = self.rachet.their_public.as_bytes();
+        let dh_private = self.rachet.our_keypair.to_bytes();
+        let root_input = &self.rootChain.input_key;
+        let sender_input = &self.receiverChain.input_key;
+        let receiver_input = &self.senderChain.input_key;
+        connection.execute("INSERT INTO
+            rachet_state(chat_id, user_id, diffie_public_bytes, diffie_private_bytes,
+            root_input_bytes, sender_input_bytes, receiver_input_bytes, root_id, sender_id, receiver_id)
+            VALUES (:chat_id, :user_id, :dh_public, :dh_private, :root_input, :sender_input, :receiver_input, :root_id, :sender_id, :receiver_id)
+            ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                diffie_public_bytes = :dh_public,
+                diffie_private_bytes = :dh_private,
+                root_input_bytes = :root_input,
+                sender_input_bytes = :sender_input,
+                receiver_input_bytes = :receiver_input,
+                root_id = :root_id,
+                sender_id = :sender_id,
+                receiver_id = :receiver_id",
+        named_params! {
+            ":dh_public": dh_public,
+            ":dh_private": dh_private,
+            ":chat_id": chat_id,
+            ":user_id": user.user_id,
+            ":root_input": root_input,
+            ":sender_input": sender_input,
+            ":receiver_input": receiver_input,
+            ":root_id": self.rootChain.id,
+            ":sender_id": self.senderChain.id,
+            ":receiver_id": self.receiverChain.id
+        })
+    }
+    pub fn load(user: &User, connection: &Connection, chat_id: &str) -> rusqlite::Result<Self> {
+        connection.query_row("SELECT * FROM rachet_state WHERE chat_id = ? AND user_id = ? LIMIT 1", params![chat_id, user.user_id],
+            |row| {
+                let dh_public: Vec<u8> = row.get("diffie_public_bytes")?;
+                let dh_private: Vec<u8> = row.get("diffie_private_bytes")?;
+                let dh_public_bytes: [u8; 32] = dh_public.try_into().unwrap();
+                let dh_private_bytes: [u8; 32] = dh_private.try_into().unwrap();
+                let rachet = DHRachet {
+                    their_public: PublicKey::from(dh_public_bytes),
+                    our_keypair: Key::from(dh_private_bytes)
+                };
+                Ok(Self {
+                    rachet,
+                    receiverChain: row_to_chain(row, "receiver")?,
+                    receiverUsedKeys: None,
+                    senderChain: row_to_chain(row, "sender")?,
+                    rootChain: row_to_chain(row, "root")?
+                })
+            })
+    }
 }
 
 
@@ -165,4 +221,19 @@ pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_
     } else {
         None
     };
+}
+
+#[tauri::command]
+pub fn reenter_chat(chat_id: String, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) -> Option<bool> {
+    let user = user_state.0.lock().unwrap();
+    let conn_mutex = db_state.0.lock().unwrap();
+    let conn = conn_mutex.get_connection();
+    let mut chat = state.0.lock().unwrap();
+    if let Ok(stored_chat) = ChatState::load(&user, conn, &chat_id) {
+        *chat = Some(stored_chat);
+        Some(true)
+    } else {
+        error!("CRITICAL! Failed to restore the rachet");
+        None
+    }
 }

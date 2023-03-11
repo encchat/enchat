@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use x25519_dalek::{SharedSecret, PublicKey};
+use x25519_dalek::{PublicKey};
 
-use crate::{chat::{ChatState, WrappedChatState}, encryption::encrypt};
+use crate::{chat::{WrappedChatState}, encryption::{encrypt, decrypt}, store::{DatabaseState}, user::{UserState}, with_state, keybundle::{save_message_key, MessageKeyType, read_message_key}};
 
 
 #[derive(Deserialize, Serialize, Clone, Copy)]
@@ -26,11 +26,14 @@ pub struct MessageHeader {
     pub initial: Option<InitialData>,
 }
 
+
 #[tauri::command]
-pub fn send(chat_id: String, message: String, state: State<WrappedChatState>) -> Option<Message> {
-    let mut chat_wrapped = state.0.lock().unwrap();
-    if let Some(chat) = &mut *chat_wrapped {
+pub fn send(chat_id: String, message: String, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) -> Option<Message> {
+    // FIXME: DRY!! maybe macro?
+    with_state!(state, user_state, db_state, |chat, user, conn| {
         let (rachet_key, message_key, id) = chat.move_sender();
+        chat.save(&user, &conn, &chat_id).expect("Failed to save double rachet state");
+        save_message_key(MessageKeyType::Sending, id, &message_key, &user, &chat_id, &conn);
         let message_header = MessageHeader {
             id,
             rachet_key,
@@ -42,20 +45,28 @@ pub fn send(chat_id: String, message: String, state: State<WrappedChatState>) ->
             header: message_header,
             ciphertext
         })
-    } else {
-        todo!()
-    }
+    })
 }
 
 #[tauri::command]
-pub fn receive(chat_id: String, message: Message, state: State<WrappedChatState>) -> Option<Vec<u8>> {
-    let mut chat_wrapped = state.0.lock().unwrap();
-    if let Some(chat) = &mut *chat_wrapped {
+pub fn receive(chat_id: String, message: Message, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) -> Option<Vec<u8>> {
+    with_state!(state, user_state, db_state, |chat, user, conn| {
         let message_key = chat.move_receiver(message.header.rachet_key);
+        chat.save(&user, &conn, &chat_id).expect("Failed to save double rachet state");
+        // Is it okay to relay on the message for ids?
+        save_message_key(MessageKeyType::Receiving, message.header.id, &message_key, &user, &chat_id, &conn);
         let ad = bincode::serialize(&message.header).unwrap();
-        let decoded = encrypt(&message_key, &message.ciphertext, &ad);
-        Some(decoded)
-    } else {
-        todo!()
-    }
+        let decoded = decrypt(&message_key, &message.ciphertext, &ad);
+        decoded.ok()
+    })
+}
+
+#[tauri::command]
+pub fn try_decrypt(chat_id: String, received: bool, message: Message, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) -> Option<Vec<u8>> {
+    with_state!(state, user_state, db_state, |_chat, user, conn| {
+        let message_key = read_message_key(if received { MessageKeyType::Receiving} else { MessageKeyType::Sending }, message.header.id, &chat_id, &user, &conn)?;
+        let ad = bincode::serialize(&message.header).unwrap();
+        let decoded = decrypt(&message_key, &message.ciphertext, &ad);
+        decoded.ok()
+    })
 }

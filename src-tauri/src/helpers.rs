@@ -7,6 +7,8 @@ macro_rules! with_state {
         let mut chat_wrapped = $state.0.lock().unwrap();
         if let Some($chat) = &mut *chat_wrapped {
             $body
+        } else {
+            todo!();
         }
     }};
 }

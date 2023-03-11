@@ -50,7 +50,7 @@ pub fn encrypt(key: &Otherkey, message: &[u8], ad: &[u8]) -> Vec<u8> {
 
 pub fn decrypt(key: &Otherkey, message: &[u8], ad: &[u8]) -> Result<Vec<u8>, aes_gcm_siv::Error> {
     let output = kdf(key.to_vec());
-    let (iv, _) = output.1.split_at(16);
+    let (iv, _) = output.1.split_at(12);
     let aes_key = Aes256GcmSiv::new_from_slice(output.0.as_ref()).unwrap();
     let nonce = Nonce::from_slice(&iv);
     let payload = Payload {
