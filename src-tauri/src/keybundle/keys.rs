@@ -1,7 +1,6 @@
 
-use ed25519_dalek::SigningKey;
 use rusqlite::{Connection, params};
-use serde::{Deserialize, Serialize, ser::SerializeStruct};
+use serde::{Serialize, ser::SerializeStruct};
 use x25519_dalek::StaticSecret;
 
 use crate::{encryption::{PublicKey, Key, generate_ephemeral, get_rng, Otherkey}, user::User};
@@ -25,7 +24,7 @@ pub struct IdentityKey(Key);
 
 
 impl <'a> StoredKey<'a> for IdentityKey {
-    fn fetch(id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
+    fn fetch(_id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
         // TODO: Should we store multiple identites? I'm not sure
         connection.query_row("SELECT key FROM identity WHERE user_id = ? LIMIT 1", params![user.user_id], |row| {
             let blob: Vec<u8> = row.get(0)?;
@@ -67,7 +66,7 @@ impl SignedKey {
 
 // TODO: DRY
 impl <'a> StoredKey<'a> for SignedKey {
-    fn fetch(id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
+    fn fetch(_id: Option<u32>, connection: &Connection, user: &User) -> rusqlite::Result<Self> {
         // TODO: Handle renewal
         connection.query_row("SELECT key FROM signed WHERE user_id = ? LIMIT 1", params![user.user_id], |row| {
             let blob: Vec<u8> = row.get(0)?;
@@ -189,7 +188,7 @@ pub fn save_message_key(message_key_type: MessageKeyType, message_id: u32, key: 
         user.user_id,
         received,
         message_id
-    ]);
+    ]).unwrap();
 }
 
 pub fn read_message_key(message_key_type: MessageKeyType, message_id: u32, chat_id: &str, user: &User, connection: &Connection) -> Option<Otherkey> {

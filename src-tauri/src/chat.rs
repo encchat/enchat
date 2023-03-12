@@ -1,13 +1,13 @@
-use std::sync::{RwLock, Mutex};
+use std::sync::{Mutex};
 
 use rusqlite::{Connection, named_params, params, Row};
 use serde::Deserialize;
 use tauri::State;
-use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
+use x25519_dalek::{PublicKey, SharedSecret};
 
 #[cfg(test)] mod tests;
 
-use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}, with_state};
+use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}};
 
 fn row_to_chain(row: &Row, chain_name: &str) -> rusqlite::Result<Chain> {
     let input_key: Vec<u8> = row.get(format!("{}_input_bytes", &chain_name).as_ref())?;
@@ -71,10 +71,10 @@ impl Default for Chain {
 }
 
 pub struct ChatState {
-    pub receiverUsedKeys: Option<InitialData>,
-    rootChain: Chain,
-    senderChain: Chain,
-    receiverChain: Chain,
+    pub receiver_used_keys: Option<InitialData>,
+    root_chain: Chain,
+    sender_chain: Chain,
+    receiver_chain: Chain,
     rachet: DHRachet
 }
 
@@ -100,60 +100,60 @@ impl ChatState {
         };
         vec
     }
-    pub fn new(initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
-        let output = kdf(initialDH);
+    pub fn new(initial_rachet_key: &PublicKey, initial_dh: Vec<u8>) -> Self {
+        let output = kdf(initial_dh);
         Self {
-            rootChain: Chain { id: 0, input_key: output.0 },
-            rachet: DHRachet::new(initialRachetKey.clone()),
-            senderChain: Default::default(),
-            receiverChain: Default::default(),
-            receiverUsedKeys: None
+            root_chain: Chain { id: 0, input_key: output.0 },
+            rachet: DHRachet::new(initial_rachet_key.clone()),
+            sender_chain: Default::default(),
+            receiver_chain: Default::default(),
+            receiver_used_keys: None
         }
     }
-    pub fn new_sender(initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
-        let mut new_self = Self::new(initialRachetKey, initialDH);
-        new_self.senderChain.set_key(new_self.rootChain.step(Some(&new_self.rachet.calculate_dh())));
+    pub fn new_sender(initial_rachet_key: &PublicKey, initial_dh: Vec<u8>) -> Self {
+        let mut new_self = Self::new(initial_rachet_key, initial_dh);
+        new_self.sender_chain.set_key(new_self.root_chain.step(Some(&new_self.rachet.calculate_dh())));
         new_self
     }
-    pub fn initial_sender(our_identity: IdentityKey, ephemeral: IdentityKey, receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection, prekey_id: u32, onetime_key_id: Option<u32>, user: &User) -> Self {
+    pub fn initial_sender(our_identity: IdentityKey, ephemeral: IdentityKey, receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, prekey_id: u32, onetime_key_id: Option<u32>) -> Self {
         let vec = Self::dh_sender(&ephemeral.get_keypair(), &our_identity.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
         let mut new_self = Self::new_sender(receiver_identity, vec);
-        new_self.receiverUsedKeys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
+        new_self.receiver_used_keys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
         new_self
     }
-    pub fn new_receiver(our_identity: Key, initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
-        let mut new_self = Self::new(initialRachetKey, initialDH);
+    pub fn new_receiver(our_identity: Key, initial_rachet_key: &PublicKey, initial_dh: Vec<u8>) -> Self {
+        let mut new_self = Self::new(initial_rachet_key, initial_dh);
         new_self.rachet.our_keypair = our_identity;
         new_self
     }
-    pub fn initial_receiver(our_identity: IdentityKey, our_prekey: SignedKey, initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey, user: &User) -> Self {
+    pub fn initial_receiver(our_identity: IdentityKey, our_prekey: SignedKey, initial_data: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey, user: &User) -> Self {
         // TODO: Handle, may be a common case?
-        let onetime_key = Onetime::fetch(initialData.onetime_key_id, conn, user).ok();
-        let sender_ephemeral = initialData.ephemeral;
+        let onetime_key = Onetime::fetch(initial_data.onetime_key_id, conn, user).ok();
+        let sender_ephemeral = initial_data.ephemeral;
 
         let vec = Self::dh_receiver(&sender_ephemeral, &our_identity.get_keypair(), &sender_identity, &our_prekey.get_keypair(), onetime_key);
         Self::new_receiver(our_identity.get_keypair().clone(), &rachet, vec)
     }
     pub fn move_sender(&mut self) -> (PublicKey, Otherkey, u32) {
-        let key = self.senderChain.step(None);
-        (PublicKey::from(&self.rachet.our_keypair), key, self.senderChain.id)
+        let key = self.sender_chain.step(None);
+        (PublicKey::from(&self.rachet.our_keypair), key, self.sender_chain.id)
     }
     pub fn move_receiver(&mut self, new_public_key: PublicKey) -> Otherkey {
-        if new_public_key != self.rachet.their_public || self.rootChain.id == 0 {
+        if new_public_key != self.rachet.their_public || self.root_chain.id == 0 {
             let receiver_dh = self.rachet.step(new_public_key);
-            let receiver_key = self.rootChain.step(Some(&receiver_dh));
-            self.receiverChain.set_key(receiver_key);
-            let sender_key = self.rootChain.step(Some(&self.rachet.calculate_dh()));
-            self.senderChain.set_key(sender_key);
+            let receiver_key = self.root_chain.step(Some(&receiver_dh));
+            self.receiver_chain.set_key(receiver_key);
+            let sender_key = self.root_chain.step(Some(&self.rachet.calculate_dh()));
+            self.sender_chain.set_key(sender_key);
         }
-        self.receiverChain.step(None)
+        self.receiver_chain.step(None)
     }
     pub fn save(&self, user: &User, connection: &Connection, chat_id: &str) -> rusqlite::Result<usize> {
         let dh_public = self.rachet.their_public.as_bytes();
         let dh_private = self.rachet.our_keypair.to_bytes();
-        let root_input = &self.rootChain.input_key;
-        let sender_input = &self.receiverChain.input_key;
-        let receiver_input = &self.senderChain.input_key;
+        let root_input = &self.root_chain.input_key;
+        let sender_input = &self.receiver_chain.input_key;
+        let receiver_input = &self.sender_chain.input_key;
         connection.execute("INSERT INTO
             rachet_state(chat_id, user_id, diffie_public_bytes, diffie_private_bytes,
             root_input_bytes, sender_input_bytes, receiver_input_bytes, root_id, sender_id, receiver_id)
@@ -175,9 +175,9 @@ impl ChatState {
             ":root_input": root_input,
             ":sender_input": sender_input,
             ":receiver_input": receiver_input,
-            ":root_id": self.rootChain.id,
-            ":sender_id": self.senderChain.id,
-            ":receiver_id": self.receiverChain.id
+            ":root_id": self.root_chain.id,
+            ":sender_id": self.sender_chain.id,
+            ":receiver_id": self.receiver_chain.id
         })
     }
     pub fn load(user: &User, connection: &Connection, chat_id: &str) -> rusqlite::Result<Self> {
@@ -193,10 +193,10 @@ impl ChatState {
                 };
                 Ok(Self {
                     rachet,
-                    receiverChain: row_to_chain(row, "receiver")?,
-                    receiverUsedKeys: None,
-                    senderChain: row_to_chain(row, "sender")?,
-                    rootChain: row_to_chain(row, "root")?
+                    receiver_chain: row_to_chain(row, "receiver")?,
+                    receiver_used_keys: None,
+                    sender_chain: row_to_chain(row, "sender")?,
+                    root_chain: row_to_chain(row, "root")?
                 })
             })
     }
@@ -215,7 +215,7 @@ pub struct ReceiverBundle {
 }
 
 #[tauri::command]
-pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) {
+pub fn enter_chat(sender_identity: Option<PublicKey>, received_message: Option<Message>, receiver_keys: Option<ReceiverBundle>, state: State<WrappedChatState>, db_state: State<DatabaseState>, user_state: State<UserState>) {
     let user = user_state.0.lock().unwrap();
     let conn_mutex = db_state.0.lock().unwrap();
     let conn = conn_mutex.get_connection();
@@ -227,7 +227,7 @@ pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_
     } else if let Some(receiver_keys) = receiver_keys {
         let identity_key = IdentityKey::fetch(None, conn, &user).unwrap();
         let ephemeral = IdentityKey::generate();
-        Some(ChatState::initial_sender(identity_key, ephemeral, &receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id, &user))
+        Some(ChatState::initial_sender(identity_key, ephemeral, &receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id))
     } else {
         None
     };

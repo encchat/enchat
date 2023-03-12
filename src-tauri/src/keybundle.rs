@@ -55,7 +55,7 @@ pub fn request_prekey(db_state: State<DatabaseState>, user_state: State<UserStat
     let conn = conn_mutex.get_connection();
     let identity = IdentityKey::fetch(None, conn, &user).unwrap();
     let prekey = SignedKey::generate();
-    prekey.store(conn, &user);
+    prekey.store(conn, &user).unwrap();
     let signature = prekey.signature(&identity.get_keypair());
     Ok(Prekey(prekey, signature))
 }

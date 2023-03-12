@@ -7,8 +7,6 @@ use rand::rngs::OsRng;
 use sha2::Sha256;
 use x25519_dalek::{StaticSecret};
 
-use crate::message;
-
 pub type Key = StaticSecret;
 pub type PublicKey = x25519_dalek::PublicKey;
 pub type RootKey = [u8; 32];

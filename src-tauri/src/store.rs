@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Mutex, fs::create_dir, path::PathBuf};
 use keyring::Entry;
 use rusqlite::{Connection, params};
 
-use crate::{encryption::{KdfOutput, get_rng, kdf}, chat::ChatState, user::User};
+use crate::{encryption::{KdfOutput, get_rng, kdf}};
 use rand::{RngCore};
 
 pub use self::migrations::make_migrations;

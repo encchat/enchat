@@ -37,7 +37,7 @@ pub fn send(chat_id: String, message: String, state: State<WrappedChatState>, db
         let message_header = MessageHeader {
             id,
             rachet_key,
-            initial: chat.receiverUsedKeys
+            initial: chat.receiver_used_keys
         };
         let ad = bincode::serialize(&message_header).unwrap();
         let ciphertext = encrypt(&message_key, message.as_bytes(), &ad);
