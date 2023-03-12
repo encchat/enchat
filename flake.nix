@@ -9,7 +9,7 @@
     let
       pkgs = nixpkgs.legacyPackages.${system};
       libraries = with pkgs; [
-        webkitgtk_4_1
+        webkitgtk
         gtk3
         cairo
         gdk-pixbuf
@@ -27,16 +27,16 @@
         glib
         gtk3
         libsoup
-        webkitgtk_4_1
+        webkitgtk
         nodejs-19_x
         rust-analyzer
         rustfmt
-        rustc
         gcc
         sass
         nodePackages.pnpm
-        cargo
         supabase-cli
+        cargo-binutils
+        rustup
       ];
     in {
       devShells.default = pkgs.mkShell {
