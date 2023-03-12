@@ -5,6 +5,8 @@ use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
+mod tests;
+
 use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}, with_state};
 
 fn row_to_chain(row: &Row, chain_name: &str) -> rusqlite::Result<Chain> {
@@ -138,11 +140,11 @@ impl ChatState {
     }
     pub fn move_receiver(&mut self, new_public_key: PublicKey) -> Otherkey {
         if new_public_key != self.rachet.their_public || self.rootChain.id == 0 {
-        let receiver_dh = self.rachet.step(new_public_key);
-        let receiver_key = self.rootChain.step(Some(&receiver_dh));
-        self.receiverChain.set_key(receiver_key);
-        let sender_key = self.rootChain.step(Some(&self.rachet.calculate_dh()));
-        self.senderChain.set_key(sender_key);
+            let receiver_dh = self.rachet.step(new_public_key);
+            let receiver_key = self.rootChain.step(Some(&receiver_dh));
+            self.receiverChain.set_key(receiver_key);
+            let sender_key = self.rootChain.step(Some(&self.rachet.calculate_dh()));
+            self.senderChain.set_key(sender_key);
         }
         self.receiverChain.step(None)
     }
