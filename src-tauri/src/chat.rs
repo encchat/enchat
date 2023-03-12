@@ -5,7 +5,7 @@ use serde::Deserialize;
 use tauri::State;
 use x25519_dalek::{StaticSecret, PublicKey, SharedSecret};
 
-mod tests;
+#[cfg(test)] mod tests;
 
 use crate::{encryption::{generate_ephemeral, kdf, Key, RootKey, Otherkey}, message::{InitialData, self, Message}, keybundle::{IdentityKey, StoredKey, ManagedKey, Prekey, SignedKey, Onetime}, store::DatabaseState, user::{UserState, User}, with_state};
 

@@ -98,6 +98,7 @@ impl Default for Database {
 pub struct DatabaseState(pub Mutex<Database>);
 
 
+#[cfg(test)]
 mod tests {
     #[test]
     fn database_key_is_64_hex_string() {
