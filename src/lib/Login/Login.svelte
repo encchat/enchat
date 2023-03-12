@@ -2,6 +2,7 @@
 import { isAuthenticated } from "src/store";
 
 import { supabaseClient } from "src/supabase";
+import LabeledInput from "../Input/LabeledInput.svelte";
 
 let email: string = ""
 let password: string = ""
@@ -28,9 +29,9 @@ const register = async () => {
 </script>
 
 <div class="flex items-center justify-center h-screen">
-    <div class="min-w-fit flex-col border bg-white px-6 py-14 shadow-md rounded-[4px]">
-        <div class="mb-8 flex justify-center">
-            <h1>Enchat</h1>
+    <div class="min-w-fit flex-col text-white">
+        <div class="mb-8 flex text-xl">
+            <h1>{!registered ? "Welcome!" : "Join the enchat"}</h1>
         </div>
             <div class="flex justify-center text-md mb-2">
                 {#if errorMessage}
@@ -40,8 +41,8 @@ const register = async () => {
                 {/if}
             </div>
         <div class="flex flex-col text-sm rounded-md">
-            <input class="mb-5 rounded-[4px] border p-3 hover:outline-none focus:outline-none hover:border-blue-500" type="text" bind:value={email} placeholder={"Email"}/>
-            <input class="mb-5 rounded-[4px] border p-3 hover:outline-none focus:outline-none hover:border-blue-500" type="password" bind:value={password} placeholder={"Password"}/>
+            <LabeledInput label="Email" bind:value={email}/>
+            <LabeledInput label="Password" bind:value={password} type="password"/>
         </div>
         <div class="flex text-sm rounded-md justify-evenly">
             <button class="rounded-md border shadow-md px-5 py-2 hover:border-blue-500" on:click={login}>Login</button>
