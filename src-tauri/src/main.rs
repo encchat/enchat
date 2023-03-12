@@ -24,12 +24,6 @@ use dotenv;
 use store::DatabaseState;
 use user::UserState;
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 fn main() {
     pretty_env_logger::init();
     dotenv::dotenv().ok();
@@ -37,7 +31,7 @@ fn main() {
         .manage(WrappedChatState(Default::default()))
         .manage(DatabaseState(Default::default()))
         .manage(UserState(Default::default()))
-        .invoke_handler(tauri::generate_handler![greet, request_onetime_keys, request_identity_key, request_prekey, enter_chat, reenter_chat, receive, send, login, try_decrypt])
+        .invoke_handler(tauri::generate_handler![request_onetime_keys, request_identity_key, request_prekey, enter_chat, reenter_chat, receive, send, login, try_decrypt])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
