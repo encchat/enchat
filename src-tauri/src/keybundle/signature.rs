@@ -90,3 +90,27 @@ pub fn verify_signature(
 
     bool::from(cap_r_check.as_bytes().ct_eq(&cap_r))
 }
+
+#[cfg(test)]
+mod tests {
+    use ed25519_dalek::SecretKey;
+
+    use crate::{keybundle::IdentityKey, encryption::{get_rng, generate_ephemeral, PublicKey}};
+
+    #[test]
+    fn signature_should_be_verifiable() {
+        let secret_id = generate_ephemeral();
+        let mut rng = get_rng();
+        let message = "Hello, world!".as_bytes();
+        let signature = super::calculate_signature(&secret_id, &mut rng, message);
+        assert_eq!(super::verify_signature(PublicKey::from(&secret_id).as_bytes(), message, &signature), true);
+    }
+    #[test]
+    fn signature_mismatch_should_throw_error() {
+        let secret_id = generate_ephemeral();
+        let mut rng = get_rng();
+        let message = "Hello, world!".as_bytes();
+        let signature = super::calculate_signature(&secret_id, &mut rng, message);
+        assert_eq!(super::verify_signature(PublicKey::from(&secret_id).as_bytes(), b"Hello, world", &signature), false);
+    }
+}

@@ -201,3 +201,59 @@ pub fn read_message_key(message_key_type: MessageKeyType, message_id: u32, chat_
         Ok(key_vec.try_into().unwrap())
     }).ok()
 }
+
+#[cfg(test)]
+mod test {
+    use rusqlite::Connection;
+
+    use crate::{store::make_migrations, user::User, keybundle::StoredKey};
+
+    pub fn prepare_database() -> Connection {
+        let mut connection = Connection::open_in_memory().unwrap();
+        make_migrations(&mut connection);
+        connection
+    }
+    #[inline]
+    fn test_user() -> User {
+        User {
+            user_id: Some("AAAA-GGGG".to_owned())
+        }
+    }
+
+    #[test]
+    fn identity_key_should_be_stored_and_fetched() {
+        let mut connection = prepare_database();
+        let user = test_user();
+        let key = super::IdentityKey::generate();
+        key.store(&mut connection, &user).unwrap();
+        let key2 = super::IdentityKey::fetch(None, &mut connection, &user).unwrap();
+        assert_eq!(key.0.to_bytes(), key2.0.to_bytes());
+    }
+    #[test]
+    fn signed_key_should_be_stored_and_fetch() {
+        let mut connection = prepare_database();
+        let user = test_user();
+        let key = super::SignedKey::generate();
+        key.store(&mut connection, &user).unwrap();
+        let key2 = super::SignedKey::fetch(None, &mut connection, &user).unwrap();
+        assert_eq!(key.0.to_bytes(), key2.0.to_bytes());
+    }
+    #[test]
+    fn onetime_key_should_be_stored_and_fetch() {
+        let mut connection = prepare_database();
+        let user = test_user();
+        let key = super::Onetime::generate();
+        key.store(&mut connection, &user).unwrap();
+        let key2 = super::Onetime::fetch(Some(0), &mut connection, &user).unwrap();
+        assert_eq!(key.key.to_bytes(), key2.key.to_bytes());
+    }
+    #[test]
+    fn message_key_should_be_stored_and_fetch() {
+        let mut connection = prepare_database();
+        let user = test_user();
+        let key = [0x02u8; 32];
+        super::save_message_key(super::MessageKeyType::Receiving, 0, &key, &user, "AAAA", &mut connection);
+        let key2 = super::read_message_key(super::MessageKeyType::Receiving, 0, "AAAA", &user, &mut connection).unwrap();
+        assert_eq!(key, key2);
+    }
+}

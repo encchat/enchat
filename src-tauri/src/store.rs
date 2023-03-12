@@ -6,7 +6,7 @@ use rusqlite::{Connection, params};
 use crate::{encryption::{KdfOutput, get_rng, kdf}, chat::ChatState, user::User};
 use rand::{RngCore};
 
-use self::migrations::make_migrations;
+pub use self::migrations::make_migrations;
 
 mod migrations;
 
@@ -86,9 +86,6 @@ impl Database {
     }
     pub fn get_connection(&self) -> &Connection {
         &self.connection
-    }
-    pub fn get_connection_mut(&mut self) -> &mut Connection {
-        &mut self.connection
     }
 }
 
