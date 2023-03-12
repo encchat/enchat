@@ -108,42 +108,42 @@ impl ChatState {
             receiverUsedKeys: None
         }
     }
-    pub fn initial_sender(receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection, prekey_id: u32, onetime_key_id: Option<u32>, user: &User) -> Self {
-        let identity_key = IdentityKey::fetch(None, conn, user).unwrap();
-        let ephemeral = IdentityKey::generate();
-        let vec = Self::dh_sender(&ephemeral.get_keypair(), &identity_key.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
-        let mut new_self = Self::new(receiver_identity, vec);
-        new_self.receiverUsedKeys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
-        let sender_key = new_self.rootChain.step(Some(&new_self.rachet.calculate_dh()));
-        new_self.senderChain.set_key(sender_key);
+    pub fn new_sender(initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
+        let mut new_self = Self::new(initialRachetKey, initialDH);
+        new_self.senderChain.set_key(new_self.rootChain.step(Some(&new_self.rachet.calculate_dh())));
         new_self
     }
-    pub fn initial_receiver(initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey, user: &User) -> Self {
-        let identity_key = IdentityKey::fetch(None, conn, user).unwrap();
-        // TODO: Add ids
-        let prekey = SignedKey::fetch(None, conn, user).unwrap();
+    pub fn initial_sender(our_identity: IdentityKey, ephemeral: IdentityKey, receiver_identity: &PublicKey, receiver_prekey: &PublicKey, receiver_onetime: Option<PublicKey>, conn: &Connection, prekey_id: u32, onetime_key_id: Option<u32>, user: &User) -> Self {
+        let vec = Self::dh_sender(&ephemeral.get_keypair(), &our_identity.get_keypair(), &receiver_identity, &receiver_prekey, receiver_onetime);
+        let mut new_self = Self::new_sender(receiver_identity, vec);
+        new_self.receiverUsedKeys = Some(InitialData { onetime_key_id, ephemeral: ephemeral.get_public_key(), prekey_id });
+        new_self
+    }
+    pub fn new_receiver(our_identity: Key, initialRachetKey: &PublicKey, initialDH: Vec<u8>) -> Self {
+        let mut new_self = Self::new(initialRachetKey, initialDH);
+        new_self.rachet.our_keypair = our_identity;
+        new_self
+    }
+    pub fn initial_receiver(our_identity: IdentityKey, our_prekey: SignedKey, initialData: &InitialData, rachet: &PublicKey, conn: &Connection, sender_identity: PublicKey, user: &User) -> Self {
         // TODO: Handle, may be a common case?
         let onetime_key = Onetime::fetch(initialData.onetime_key_id, conn, user).ok();
         let sender_ephemeral = initialData.ephemeral;
 
-        let vec = Self::dh_receiver(&sender_ephemeral, &identity_key.get_keypair(), &sender_identity, &prekey.get_keypair(), onetime_key);
-        let mut new_self = Self::new(&rachet, vec);
-        new_self.rachet.our_keypair = identity_key.get_keypair().clone();
-        new_self
-    }
-    pub fn is_initial(&self) -> bool {
-        self.rootChain.id == 0u32 && self.senderChain.id == 0u32
+        let vec = Self::dh_receiver(&sender_ephemeral, &our_identity.get_keypair(), &sender_identity, &our_prekey.get_keypair(), onetime_key);
+        Self::new_receiver(our_identity.get_keypair().clone(), &rachet, vec)
     }
     pub fn move_sender(&mut self) -> (PublicKey, Otherkey, u32) {
         let key = self.senderChain.step(None);
         (PublicKey::from(&self.rachet.our_keypair), key, self.senderChain.id)
     }
     pub fn move_receiver(&mut self, new_public_key: PublicKey) -> Otherkey {
+        if new_public_key != self.rachet.their_public || self.rootChain.id == 0 {
         let receiver_dh = self.rachet.step(new_public_key);
         let receiver_key = self.rootChain.step(Some(&receiver_dh));
         self.receiverChain.set_key(receiver_key);
         let sender_key = self.rootChain.step(Some(&self.rachet.calculate_dh()));
         self.senderChain.set_key(sender_key);
+        }
         self.receiverChain.step(None)
     }
     pub fn save(&self, user: &User, connection: &Connection, chat_id: &str) -> rusqlite::Result<usize> {
@@ -219,9 +219,13 @@ pub fn enter_chat(chat_id: String, sender_identity: Option<PublicKey>, received_
     let conn = conn_mutex.get_connection();
     let mut chat = state.0.lock().unwrap();
     *chat = if let Some(message) = received_message {
-        Some(ChatState::initial_receiver(&message.header.initial.unwrap(), &message.header.rachet_key, conn, sender_identity.unwrap(), &user))
+        let identity_key = IdentityKey::fetch(None, conn, &user).unwrap();
+        let prekey = SignedKey::fetch(None, conn, &user).unwrap();
+        Some(ChatState::initial_receiver(identity_key, prekey, &message.header.initial.unwrap(), &message.header.rachet_key, conn, sender_identity.unwrap(), &user))
     } else if let Some(receiver_keys) = receiver_keys {
-        Some(ChatState::initial_sender(&receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id, &user))
+        let identity_key = IdentityKey::fetch(None, conn, &user).unwrap();
+        let ephemeral = IdentityKey::generate();
+        Some(ChatState::initial_sender(identity_key, ephemeral, &receiver_keys.receiver_identity,&receiver_keys.receiver_prekey, receiver_keys.receiver_onetime, conn, receiver_keys.receiver_prekey_id, receiver_keys.receiver_onetime_id, &user))
     } else {
         None
     };
