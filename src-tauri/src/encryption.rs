@@ -59,3 +59,61 @@ pub fn decrypt(key: &Otherkey, message: &[u8], ad: &[u8]) -> Result<Vec<u8>, aes
     };
     aes_key.decrypt(nonce, payload)
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    pub fn should_encrypt_with_ad() {
+        let key = [0x20u8; 32];
+        let message = "Hello World".as_bytes();
+        let ad = "AD".as_bytes();
+        let encrypted = super::encrypt(&key, message, ad);
+        let decrypted = super::decrypt(&key, &encrypted, ad).expect("Failed to decrypt");
+        assert_eq!(message, &decrypted[..]);
+    }
+    #[test]
+    pub fn encryption_should_fail_with_tempered_ad() {
+        let key = [0x20u8; 32];
+        let message = "Hello World".as_bytes();
+        let ad = "AD".as_bytes();
+        let encrypted = super::encrypt(&key, message, ad);
+        let mut ad = "ADE".as_bytes();
+        let decrypted = super::decrypt(&key, &encrypted, ad);
+        assert!(decrypted.is_err());
+    }
+    #[test]
+    pub fn decryption_should_fail_with_wrong_key() {
+        let key = [0x20u8; 32];
+        let message = "Hello World".as_bytes();
+        let ad = "AD".as_bytes();
+        let encrypted = super::encrypt(&key, message, ad);
+        let key = [0x21u8; 32];
+        let decrypted = super::decrypt(&key, &encrypted, ad);
+        assert!(decrypted.is_err());
+    }
+    #[test]
+    pub fn kdf_should_be_deterministic() {
+        let key = [0x20u8; 32];
+        let output = super::kdf(key.to_vec());
+        let output2 = super::kdf(key.to_vec());
+        assert_eq!(output.0, output2.0);
+        assert_eq!(output.1, output2.1);
+    }
+    #[test]
+    pub fn kdf_output_should_differ() {
+        let key = [0x20u8; 32];
+        let key2 = [0x21u8; 32];
+        let output = super::kdf(key.to_vec());
+        let output2 = super::kdf(key2.to_vec());
+        assert_ne!(output.0, output2.0);
+        assert_ne!(output.1, output2.1);
+    }
+    #[test]
+    pub fn kdf_output_should_differ_from_input() {
+        let key = [0x20u8; 32];
+        let output = super::kdf(key.to_vec());
+        assert_ne!(output.0, key);
+        assert_ne!(output.1, key);
+    }
+
+}
