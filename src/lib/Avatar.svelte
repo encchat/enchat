@@ -12,4 +12,4 @@ $:
     if (avatarUrl) downloadImage(avatarUrl)
 </script>
 
-<img src={url} class="rounded-full h-10 w-10 border border-transparent  object-fill" alt="user avatar">
+<img src={url} class="rounded-full h-5 w-5 border border-transparent  object-fill" alt="user avatar">

@@ -1,6 +1,8 @@
 <script lang="ts">
 import AccountSetup from './lib/AccountSetup.svelte';
 import Chat from './lib/Chat/Chat.svelte';
+import ChatList from './lib/ChatList/ChatList.svelte';
+import Dashboard from './lib/Dashboard.svelte';
 import KeyManager from './lib/KeyManager.svelte';
 import Login from './lib/Login/Login.svelte';
 import Logut from './lib/Login/Logout.svelte';
@@ -13,14 +15,11 @@ import {isAuthenticated, user} from './store'
     <p>...</p>
   {:then isAuthenticated}
     {#if isAuthenticated}
-      <UserSearch/>
-      <Logut/>
       {#await $user}
         <p>...</p>
       {:then currentUser}
-        <AccountSetup user={currentUser}/>
         <KeyManager user={currentUser}/>
-        <Chat user={currentUser} chatId="4178b2a9-f4d2-4d89-9cd1-20ce67a472d6"/>
+        <Dashboard user={currentUser}/>
       {/await}
     {:else}
       <Login/>
