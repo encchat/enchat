@@ -12,3 +12,14 @@ macro_rules! with_state {
         }
     }};
 }
+
+#[cfg(test)]
+pub fn prepare_database() -> rusqlite::Connection {
+    use rusqlite::Connection;
+
+    use crate::store::make_migrations;
+
+    let mut connection = Connection::open_in_memory().unwrap();
+    make_migrations(&mut connection);
+    connection
+}

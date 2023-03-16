@@ -203,15 +203,9 @@ pub fn read_message_key(message_key_type: MessageKeyType, message_id: u32, chat_
 
 #[cfg(test)]
 mod test {
-    use rusqlite::Connection;
 
-    use crate::{store::make_migrations, user::User, keybundle::StoredKey};
+    use crate::{user::User, keybundle::StoredKey, helpers::prepare_database};
 
-    pub fn prepare_database() -> Connection {
-        let mut connection = Connection::open_in_memory().unwrap();
-        make_migrations(&mut connection);
-        connection
-    }
     #[inline]
     fn test_user() -> User {
         User {
