@@ -1,10 +1,12 @@
 <script lang="ts">
+import type { User } from "@supabase/supabase-js";
+
 import { invoke } from "@tauri-apps/api";
 
 import { IdentityKey, OnetimeKey, populateKey, Prekey } from "src/Keys";
 import { onMount } from "svelte";
 
-export let user: User.User
+export let user: User
 
 
 onMount(async () => {

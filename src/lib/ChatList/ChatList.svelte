@@ -1,16 +1,11 @@
 <script lang="ts">
 import type { User } from "@supabase/supabase-js";
 import { supabaseClient } from "src/supabase";
-import { onMount } from "svelte";
 import Avatar from "../Avatar.svelte";
-import { currentChatId } from "../Chat/chatStore";
+import { currentChat, type Chat } from "../Chat/chatStore";
 
 export let user: User.User;
-interface Chat {
-    chatId: string;
-    chatName: string;
-    chatAvatarUrl: string;
-}
+
 const getFirstMemberOfChat = async (chatId: string) => {
     const firstMember = await supabaseClient.from('chat-party')
         .select('user')
@@ -42,11 +37,16 @@ const getAndMapChats = async () => {
         const profile = await getProfileOfChatMember(firstMemberId);
         chats.push({
             chatId,
-            chatName: profile.username,
+            chatNickname: profile.username,
             chatAvatarUrl: profile.avatar_url
         });
     }
+    console.log(chats)
     return chats;
+}
+
+const enterChat = (chat: Chat) => {
+    currentChat.set(chat)
 }
 
 </script>
@@ -58,7 +58,8 @@ const getAndMapChats = async () => {
             Loading chats
         {:then chats} 
             {#each chats as chat}
-                <div class={`flex mx-5 px-1 items-center gap-2 py-1 ${chat.chatId != $currentChatId && 'border-l-2 border-neutral-400 bg-currentIndicator'}`}>
+                <div class={`flex mx-5 px-1 items-center gap-2 py-1 ${chat.chatId == $currentChat?.chatId && 'border-l-2 border-neutral-400 bg-currentIndicator'}`}
+                    on:click={() => enterChat(chat)}>
                     <Avatar avatarUrl={chat.chatAvatarUrl} />
                     <div>{chat.chatName}</div>
                 </div>

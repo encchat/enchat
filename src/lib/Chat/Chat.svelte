@@ -1,137 +1,113 @@
 <script lang="ts">
 import type { User } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api";
+import { getMessages, initialReceiver, initialSender, isInitialReceiver, sendMessage, type DecryptedMessage } from "./chat";
 
-import { IdentityKey, OnetimeKey, populateKey, Prekey } from "src/Keys";
+import { currentChat, type Chat } from "./chatStore";
 
-import { supabaseClient } from "src/supabase";
-import { onMount } from "svelte";
-
-
-
-export let chatId: string;
-export let user: User.User
+export let user: User
 
 
-const isInitialReceiver = async () => {
-    const messages = await supabaseClient.from('chat-message').select('*', {count: "estimated"}).eq('chat_id', chatId)
-    console.log(messages)
-    return messages.count > 0
-}
-const initialSender = async () => {
-    const {data, error} = await supabaseClient.from('chat-party')
-        .select('user')
-        .eq('chat', chatId)
-        .neq('user', user.id)
-        .limit(1)
-        .single()
-    const receiverIdentity = await populateKey(data.user, IdentityKey);
-    const receiverPrekey = await populateKey(data.user, Prekey)
-    const receiverOnetime = await populateKey(data.user, OnetimeKey)
-    const res = await invoke('enter_chat', {
-        chatId,
-        receiverKeys: {
-            receiver_prekey: receiverPrekey.key,
-            receiver_identity: receiverIdentity.key,
-            receiver_onetime: receiverOnetime.key,
-            receiver_onetime_id: receiverOnetime.id,
-            receiver_prekey_id: 1
-        }
-    })
 
-}
+let decryptedMessages: DecryptedMessage[] = []
 
-const initialReceiver = async () => {
-    const firstMessage = await supabaseClient.from('chat-message').select('*').eq('chat_id', chatId).order('created_at', { ascending: true }).limit(1)
-    console.log(firstMessage)
-    const {data, error} = await supabaseClient.from('chat-party')
-        .select('user')
-        .eq('chat', chatId)
-        .neq('user', user.id)
-        .limit(1)
-        .single()
-    const senderIdentity = await populateKey(data.user, IdentityKey);
-    console.log(senderIdentity)
-    const res = await invoke('enter_chat', {
-        chatId,
-        senderIdentity: senderIdentity.key,
-        receivedMessage: JSON.parse(firstMessage.data[0].content)
-    })
-}
-
-interface MessageEntry {
-    id: string;
-    content: string,
-    sender_id: string;
-}
-
-interface DecryptedMessage {
-    text: string
-}
-
-const decryptMessages = async (message: MessageEntry): Promise<DecryptedMessage> => {
-    try {
-        const parsed = JSON.parse(message.content)
-        let decryptedBytes = await invoke<Array<number>>('try_decrypt', {
-            chatId,
-            received: message.sender_id != user.id,
-            message: parsed,
-        })
-        if (!decryptedBytes && message.sender_id != user.id)
-            decryptedBytes = await invoke<Array<number>>('receive', {
-                chatId,
-                message: parsed,
-            })
-        console.log(decryptedBytes)
-        const text = new TextDecoder().decode(Uint8Array.from(decryptedBytes))
-        console.log(text)
-        return {
-            text
-        }
-    } catch (err) {
-        console.error(err)
-        return {
-            text: 'Decryption failed'
-        }
-    }
-}
-const getMessages = async () => {
-    const messages =  await supabaseClient.from('chat-message')
-        .select('sender_id, content, id')
-        .eq('chat_id', chatId)
-        .order("created_at", {ascending: true});
-    for (const message of messages.data) {
-        decryptMessages(message)
-    }
-}
-const sendMessage = async () => {
-    const res = await invoke('send', {
-        chatId,
-        message
-    })
-    console.log(JSON.stringify(res))
-    await supabaseClient.from('chat-message').insert({
-        chat_id: chatId,
-        sender_id: user.id,
-        content: JSON.stringify(res)
-    })
-}
 
 let message: string = ""
 
-onMount(async () => {
-    if (!await invoke('reenter_chat', {chatId: chatId})) {
-        if (await isInitialReceiver())
-            await initialReceiver()
-        else await initialSender()
+const jumpTo = (id?: number) => {
+    requestAnimationFrame(() => {
+        const element = document.querySelector(`[data-index="${id ?? decryptedMessages[decryptedMessages.length - 1].id}"]`)
+        console.log(element)
+        if (element) element.scrollIntoView()
+    })
+}
+
+const fetchMessages = async (chatId: string) => {
+    const skip = decryptedMessages.length
+    console.log('Fetching, skipped: ' + skip)
+    let found = 0;
+    for await (const message of getMessages(chatId, user.id, skip)) {
+        console.log(message)
+        decryptedMessages.push(message)
+        found++;
+    }
+    if (found > 0) {
+        decryptedMessages.sort((a, b) => a.id - b.id)
+        decryptedMessages = decryptedMessages
+    }
+}
+
+const changeChat = async (chat: Chat | null) => {
+    if (!chat) return
+
+    if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
+        if (await isInitialReceiver(chat.chatId))
+            await initialReceiver(chat.chatId, user.id)
+        else await initialSender(chat.chatId, user.id)
             
     }
-    getMessages()
-})
+    await fetchMessages(chat.chatId)
+    jumpTo()
+    setupPagination()
+}
+
+
+const send = async () => {
+    const res = await sendMessage($currentChat.chatId, message, user.id)
+    decryptedMessages = [{
+        text: message,
+        id: res.data[0].id
+    }, ...decryptedMessages]
+    console.log(decryptedMessages)
+    jumpTo()
+    setupPagination()
+}
+
+currentChat.subscribe(changeChat)
+
+let observer: IntersectionObserver;
+let container: HTMLElement;
+
+const setupPagination = () => {
+    requestAnimationFrame(() => {
+        const options = {
+            root: container,
+            rootMargin: '0px',
+            threshold: 1.0
+        }
+        observer = new IntersectionObserver(lastItemOnVisible, options)
+        const lastItem = document.querySelector(`[data-index="${decryptedMessages[0].id}"]`)
+        observer.observe(lastItem)
+
+    })
+}
+
+const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
+    console.log(entries)
+    if (entries[0].isIntersecting) {
+        const currentLastId = decryptedMessages[0].id
+        console.log('last item is visible')
+        fetchMessages($currentChat.chatId).then(_ => jumpTo(currentLastId))
+    }
+}
 
 </script>
 
-<form on:submit|preventDefault={sendMessage}>
-Wiadomosc: <input type="text" bind:value={message}>
-<button type="submit">Wyslij</button>
-</form>
+{#if $currentChat}
+    <form on:submit|preventDefault={send}>
+        Wiadomosc: <input type="text" bind:value={message}>
+        <button type="submit">Wyslij</button>
+    </form>
+    <div class="flex flex-col overflow-scroll" bind:this={container}>
+        {#each decryptedMessages as item}
+            <div data-index={item.id}  class={`items-end ${item.received ?  '' : 'justify-end'} flex`}>
+                <div class="py-2">
+                    {item.text}
+                </div>
+            </div>
+        {/each}
+    </div>
+{:else}
+    <h1>Your chat will be visible here</h1>
+{/if}
+
