@@ -1,10 +1,12 @@
 <script lang="ts">
-import { isAuthenticated  } from "src/store";
+import { isAuthenticated } from "src/store";
 
 import { supabaseClient } from "src/supabase";
+import { currentChat } from "../Chat/chatStore";
 const onClick = async () => {
-    supabaseClient.auth.signOut()
     isAuthenticated.set(false)
+    currentChat.set(null)
+    await supabaseClient.auth.signOut().then(s => console.debug('looged of'))
 }
 </script>
 

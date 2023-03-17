@@ -46,6 +46,7 @@ const getAndMapChats = async () => {
 }
 
 const enterChat = (chat: Chat) => {
+    console.log('Setting the chat')
     currentChat.set(chat)
 }
 

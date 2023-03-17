@@ -1,13 +1,15 @@
 <script lang="ts">
-import AccountSetup from './lib/AccountSetup.svelte';
-import Chat from './lib/Chat/Chat.svelte';
-import ChatList from './lib/ChatList/ChatList.svelte';
 import Dashboard from './lib/Dashboard.svelte';
 import KeyManager from './lib/KeyManager.svelte';
 import Login from './lib/Login/Login.svelte';
-import Logut from './lib/Login/Logout.svelte';
-import UserSearch from './lib/UserSearch.svelte';
-import {isAuthenticated, user} from './store'
+import {isAuthenticated} from './store'
+import { supabaseClient } from './supabase';
+const getCurrentUser = async () => {
+  const {data} = await supabaseClient.auth.getUser()
+  console.log("Getting current user")
+  console.log(data.user)
+  return data.user
+}
 </script>
 
 <main class="w-screen h-screen">
@@ -15,7 +17,7 @@ import {isAuthenticated, user} from './store'
     <p>...</p>
   {:then isAuthenticated}
     {#if isAuthenticated}
-      {#await $user}
+      {#await getCurrentUser()}
         <p>...</p>
       {:then currentUser}
         <KeyManager user={currentUser}/>

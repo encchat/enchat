@@ -1,7 +1,7 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@supabase/supabase-js': ^2.8.0
+  '@supabase/supabase-js': ^2.11.0
   '@sveltejs/vite-plugin-svelte': ^2.0.0
   '@tauri-apps/api': ^1.2.0
   '@tauri-apps/cli': ^1.2.3
@@ -21,7 +21,7 @@ specifiers:
   vite: ^4.0.0
 
 dependencies:
-  '@supabase/supabase-js': 2.8.0
+  '@supabase/supabase-js': 2.11.0
   '@tauri-apps/api': 1.2.0
   base58-js: 2.0.0
   sass: 1.58.3
@@ -279,8 +279,8 @@ packages:
       fastq: 1.15.0
     dev: true
 
-  /@supabase/functions-js/2.0.0:
-    resolution: {integrity: sha512-ozb7bds2yvf5k7NM2ZzUkxvsx4S4i2eRKFSJetdTADV91T65g4gCzEs9L3LUXSrghcGIkUaon03VPzOrFredqg==}
+  /@supabase/functions-js/2.1.0:
+    resolution: {integrity: sha512-vRziB+AqRXRaGHjEFHwBo0kuNDTuAxI7VUeqU24Fe86ISoD8YEQm0dGdpleJEcqgDGWaO6pxT1tfj1BRY5PwMg==}
     dependencies:
       cross-fetch: 3.1.5
     transitivePeerDependencies:
@@ -303,8 +303,8 @@ packages:
       - encoding
     dev: false
 
-  /@supabase/realtime-js/2.6.0:
-    resolution: {integrity: sha512-tOVulMobhpxyDuu8VIImpL8FXmZOKsGNOSyS5ihJdj2xYmPPvYG+D2J51Ewfl+MFF65tweiB6p9N9bNIW1cDNA==}
+  /@supabase/realtime-js/2.7.0:
+    resolution: {integrity: sha512-wg35ofiCpIemycmPZvvZk3jM9c9z8VvnPUBbSP9ZZN2vSOEJ9C7DZuLiiZMXsyNUzjVgIn62A1tN99T5+9O8Aw==}
     dependencies:
       '@types/phoenix': 1.5.5
       websocket: 1.0.34
@@ -312,22 +312,22 @@ packages:
       - supports-color
     dev: false
 
-  /@supabase/storage-js/2.3.0:
-    resolution: {integrity: sha512-YGWVCEYYYF3+UiyL8O4xC78N9n9paLbT0hHl8dmYAtd3DqyWtu5Eph9JTu0PWm+/29Zhns5TbhUZW4xpWjJfPQ==}
+  /@supabase/storage-js/2.3.1:
+    resolution: {integrity: sha512-BaPIvyvjuZW1V0CnfGKUZyzpBUXnsh0XD8eqTOYd+MdiGPmIPI0vtwnT4fAoK8mipp1vpcN62EVQaqeUnWXPtQ==}
     dependencies:
       cross-fetch: 3.1.5
     transitivePeerDependencies:
       - encoding
     dev: false
 
-  /@supabase/supabase-js/2.8.0:
-    resolution: {integrity: sha512-uzf4J+qAKdUMhB2tnJl6BrQRUQBinwjJ2eWo2ZsDw9EUUP5JcHsxTamiq6p91DpqzmTIRg3xRAT+bItTzbfa0w==}
+  /@supabase/supabase-js/2.11.0:
+    resolution: {integrity: sha512-FkaPZjVx1oY4boS02kAoNhmdyy5hrezxGlY8lZdQwKvk7ee5NPiXzjjsGruc6JOS1QNeuWIUAw1L7uKVYI30dA==}
     dependencies:
-      '@supabase/functions-js': 2.0.0
+      '@supabase/functions-js': 2.1.0
       '@supabase/gotrue-js': 2.12.1
       '@supabase/postgrest-js': 1.4.1
-      '@supabase/realtime-js': 2.6.0
-      '@supabase/storage-js': 2.3.0
+      '@supabase/realtime-js': 2.7.0
+      '@supabase/storage-js': 2.3.1
       cross-fetch: 3.1.5
     transitivePeerDependencies:
       - encoding

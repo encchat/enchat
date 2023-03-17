@@ -39,7 +39,9 @@ const fetchMessages = async (chatId: string) => {
 
 const changeChat = async (chat: Chat | null) => {
     if (!chat) return
-
+    debugger
+    console.log('Chat change')
+    console.log(user)
     if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
         if (await isInitialReceiver(chat.chatId))
             await initialReceiver(chat.chatId, user.id)
@@ -63,7 +65,7 @@ const send = async () => {
     setupPagination()
 }
 
-currentChat.subscribe(changeChat)
+// currentChat.subscribe(changeChat)
 
 let observer: IntersectionObserver;
 let container: HTMLElement;
@@ -94,6 +96,9 @@ const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
 </script>
 
 {#if $currentChat}
+{#await changeChat($currentChat)}
+    <p>Loading chat</p>
+{:then _}
     <form on:submit|preventDefault={send}>
         Wiadomosc: <input type="text" bind:value={message}>
         <button type="submit">Wyslij</button>
@@ -107,6 +112,7 @@ const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
             </div>
         {/each}
     </div>
+{/await}
 {:else}
     <h1>Your chat will be visible here</h1>
 {/if}

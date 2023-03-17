@@ -43,6 +43,7 @@ export const initialSender = async (chatId: string, userId: string) => {
 }
 
 export const initialReceiver = async (chatId: string, userId: string) => {
+    console.debug('Initial receiver')
     const firstMessage = await supabaseClient.from('chat-message').select('*').eq('chat_id', chatId).order('created_at', { ascending: true }).limit(1).single()
     if (!firstMessage.data || !firstMessage.data.content) {
         throw new Error("Messages could not be retrieved")
@@ -57,6 +58,7 @@ export const initialReceiver = async (chatId: string, userId: string) => {
     if (!data?.user) {
         throw new Error("Sender identity not found");
     }
+    console.log(data)
     const senderIdentity = await populateKey(data.user, IdentityKey);
     console.log(senderIdentity)
     await invoke('enter_chat', {
@@ -90,7 +92,8 @@ export const decryptMessages = async (chatId: string, message: MessageEntry, use
         console.error(err)
         return {
             text: 'Decryption failed',
-            id: message.id
+            id: message.id,
+            received: message.sender_id != userId
         }
     }
 }
