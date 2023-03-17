@@ -53,10 +53,13 @@ pub fn send(chat_id: String, message: String, state: State<WrappedChatState>, db
 }
 
 fn receive_inner(chat_id: String, message: Message, chat: &mut ChatState, user: &User, conn: &Connection) -> Option<Vec<u8>> {
-    let skipped = chat.calculate_skipped_message(message.header.id);
-    for x in 1..skipped {
+    let last = chat.get_last_received_id();
+    // TODO: Check the math here
+    // Genere and save decryption keys for out of order messages for later usage
+
+    for x in last..message.header.id-1 {
         let message_key = chat.move_receiver(message.header.rachet_key);
-        save_message_key(MessageKeyType::Receiving, message.header.id - skipped + x - 1 , &message_key, &user, &chat_id, &conn);
+        save_message_key(MessageKeyType::Receiving, x + 1 , &message_key, &user, &chat_id, &conn);
     }
     let message_key = chat.move_receiver(message.header.rachet_key);
     save_message_key(MessageKeyType::Receiving, message.header.id, &message_key, &user, &chat_id, &conn);

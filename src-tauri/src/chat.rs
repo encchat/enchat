@@ -200,11 +200,8 @@ impl ChatState {
                 })
             })
     }
-    pub fn calculate_skipped_message(&self, current_message_id: u32) -> u32 {
-        if (current_message_id < self.receiver_chain.id) {
-            return 0;
-        }
-        current_message_id - self.receiver_chain.id
+    pub fn get_last_received_id(&self) -> u32 {
+        self.receiver_chain.id
     }
 }
 
