@@ -26,6 +26,7 @@ pub struct MessageHeader {
     pub id: u32,
     pub rachet_key: PublicKey,
     pub initial: Option<InitialData>,
+    pub previous_receiver_length: u32,
 }
 
 fn send_inner(chat_id: String, message: String, chat: &mut ChatState, user: &User, conn: &Connection) -> Option<Message> {
@@ -35,7 +36,8 @@ fn send_inner(chat_id: String, message: String, chat: &mut ChatState, user: &Use
     let message_header = MessageHeader {
         id,
         rachet_key,
-        initial: chat.receiver_used_keys
+        initial: chat.receiver_used_keys,
+        previous_receiver_length: chat.last_previous_sender_id
     };
     let ad = bincode::serialize(&message_header).unwrap();
     let ciphertext = encrypt(&message_key, message.as_bytes(), &ad);
@@ -53,15 +55,19 @@ pub fn send(chat_id: String, message: String, state: State<WrappedChatState>, db
 }
 
 fn receive_inner(chat_id: String, message: Message, chat: &mut ChatState, user: &User, conn: &Connection) -> Option<Vec<u8>> {
-    let last = chat.get_last_received_id();
     // TODO: Check the math here
     // Genere and save decryption keys for out of order messages for later usage
-
-    for x in last..message.header.id-1 {
-        let message_key = chat.move_receiver(message.header.rachet_key);
-        save_message_key(MessageKeyType::Receiving, x + 1 , &message_key, &user, &chat_id, &conn);
+    if message.header.id > 0 {
+        for x in chat.get_last_received_id()..(message.header.previous_receiver_length) {
+            let message_key = chat.move_receiver(None);
+            save_message_key(MessageKeyType::Receiving, x , &message_key, &user, &chat_id, &conn);
+        }
+        for x in chat.get_last_received_id()..message.header.id {
+            let message_key = chat.move_receiver(Some(message.header.rachet_key));
+            save_message_key(MessageKeyType::Receiving, x , &message_key, &user, &chat_id, &conn);
+        }
     }
-    let message_key = chat.move_receiver(message.header.rachet_key);
+    let message_key = chat.move_receiver(Some(message.header.rachet_key));
     save_message_key(MessageKeyType::Receiving, message.header.id, &message_key, &user, &chat_id, &conn);
     chat.save(&user, &conn, &chat_id).expect("Failed to save double rachet state");
     let ad = bincode::serialize(&message.header).unwrap();

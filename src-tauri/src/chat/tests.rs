@@ -1,6 +1,6 @@
-use crate::{keybundle::{IdentityKey, StoredKey, Onetime, Prekey, ManagedKey, SignedKey}, encryption::{generate_ephemeral, PublicKey, Otherkey}};
+use crate::{keybundle::{IdentityKey, StoredKey, Onetime, ManagedKey, SignedKey}, encryption::{PublicKey, Otherkey}};
 
-use super::{ChatState, DHRachet};
+use super::{ChatState};
 
 #[test]
 fn bob_alice_should_share_same_initial_key() {
@@ -21,7 +21,7 @@ fn bob_should_be_able_to_receive_alice() {
     let mut initial_alice_chat = ChatState::new_sender(&bob_keypair.get_public_key(), psk.clone());
     let (alice_rachet_key, alice_message_key, _) = initial_alice_chat.move_sender();
     let mut initial_bob_chat = ChatState::new_receiver(bob_keypair.get_keypair().clone(), &alice_rachet_key, psk);
-    let bob_message_key = initial_bob_chat.move_receiver(alice_rachet_key);
+    let bob_message_key = initial_bob_chat.move_receiver(Some(alice_rachet_key));
     assert_eq!(alice_message_key, bob_message_key);
 }
 #[test]
@@ -36,7 +36,7 @@ fn bob_should_be_able_to_receive_alice_multiple() {
     }
     let mut initial_bob_chat = ChatState::new_receiver(bob_keypair.get_keypair().clone(), &vec[0].0, psk.clone());
     for message in vec {
-        let bob_message_key = initial_bob_chat.move_receiver(message.0);
+        let bob_message_key = initial_bob_chat.move_receiver(Some(message.0));
         assert_eq!(message.1, bob_message_key);
         debug!("Valid");
     }
@@ -52,8 +52,8 @@ fn bob_alice_should_pingpong_multiple_times() {
         if x == 0 {
             initial_bob_chat = Some(ChatState::new_receiver(bob_keypair.get_keypair().clone(), &alice_rachet_key, psk.clone()));
         }
-        assert_eq!(initial_bob_chat.as_mut().unwrap().move_receiver(alice_rachet_key), alice_message_key);
+        assert_eq!(initial_bob_chat.as_mut().unwrap().move_receiver(Some(alice_rachet_key)), alice_message_key);
         let (bob_rachet_key, bob_message_key, _) = initial_bob_chat.as_mut().unwrap().move_sender();
-        assert_eq!(initial_alice_chat.move_receiver(bob_rachet_key), bob_message_key);
+        assert_eq!(initial_alice_chat.move_receiver(Some(bob_rachet_key)), bob_message_key);
     }
 }

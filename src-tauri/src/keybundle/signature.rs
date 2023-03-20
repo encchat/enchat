@@ -93,9 +93,7 @@ pub fn verify_signature(
 
 #[cfg(test)]
 mod tests {
-    use ed25519_dalek::SecretKey;
-
-    use crate::{keybundle::IdentityKey, encryption::{get_rng, generate_ephemeral, PublicKey}};
+    use crate::encryption::{get_rng, generate_ephemeral, PublicKey};
 
     #[test]
     fn signature_should_be_verifiable() {

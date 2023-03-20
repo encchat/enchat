@@ -75,7 +75,8 @@ pub struct ChatState {
     root_chain: Chain,
     sender_chain: Chain,
     receiver_chain: Chain,
-    rachet: DHRachet
+    rachet: DHRachet,
+    pub last_previous_sender_id: u32,
 }
 
 
@@ -107,7 +108,8 @@ impl ChatState {
             rachet: DHRachet::new(initial_rachet_key.clone()),
             sender_chain: Default::default(),
             receiver_chain: Default::default(),
-            receiver_used_keys: None
+            receiver_used_keys: None,
+            last_previous_sender_id: 0
         }
     }
     pub fn new_sender(initial_rachet_key: &PublicKey, initial_dh: Vec<u8>) -> Self {
@@ -135,16 +137,20 @@ impl ChatState {
         Self::new_receiver(our_identity.get_keypair().clone(), &rachet, vec)
     }
     pub fn move_sender(&mut self) -> (PublicKey, Otherkey, u32) {
+        let id = self.sender_chain.id;
         let key = self.sender_chain.step(None);
-        (PublicKey::from(&self.rachet.our_keypair), key, self.sender_chain.id)
+        (PublicKey::from(&self.rachet.our_keypair), key, id)
     }
-    pub fn move_receiver(&mut self, new_public_key: PublicKey) -> Otherkey {
-        if new_public_key != self.rachet.their_public || self.root_chain.id == 0 {
-            let receiver_dh = self.rachet.step(new_public_key);
-            let receiver_key = self.root_chain.step(Some(&receiver_dh));
-            self.receiver_chain.set_key(receiver_key);
-            let sender_key = self.root_chain.step(Some(&self.rachet.calculate_dh()));
-            self.sender_chain.set_key(sender_key);
+    pub fn move_receiver(&mut self, new_public_key: Option<PublicKey>) -> Otherkey {
+        if let Some(new_public_key) = new_public_key {
+            if new_public_key != self.rachet.their_public || self.root_chain.id == 0 {
+                let receiver_dh = self.rachet.step(new_public_key);
+                let receiver_key = self.root_chain.step(Some(&receiver_dh));
+                self.receiver_chain.set_key(receiver_key);
+                let sender_key = self.root_chain.step(Some(&self.rachet.calculate_dh()));
+                self.sender_chain.set_key(sender_key);
+                self.last_previous_sender_id = self.sender_chain.id;
+            }
         }
         self.receiver_chain.step(None)
     }
@@ -156,8 +162,8 @@ impl ChatState {
         let receiver_input = &self.sender_chain.input_key;
         connection.execute("INSERT INTO
             rachet_state(chat_id, user_id, diffie_public_bytes, diffie_private_bytes,
-            root_input_bytes, sender_input_bytes, receiver_input_bytes, root_id, sender_id, receiver_id)
-            VALUES (:chat_id, :user_id, :dh_public, :dh_private, :root_input, :sender_input, :receiver_input, :root_id, :sender_id, :receiver_id)
+            root_input_bytes, sender_input_bytes, receiver_input_bytes, root_id, sender_id, receiver_id, last_previous_sender_id)
+            VALUES (:chat_id, :user_id, :dh_public, :dh_private, :root_input, :sender_input, :receiver_input, :root_id, :sender_id, :receiver_id, :last_previous_sender_id)
             ON CONFLICT(chat_id, user_id) DO UPDATE SET
                 diffie_public_bytes = :dh_public,
                 diffie_private_bytes = :dh_private,
@@ -166,7 +172,8 @@ impl ChatState {
                 receiver_input_bytes = :receiver_input,
                 root_id = :root_id,
                 sender_id = :sender_id,
-                receiver_id = :receiver_id",
+                receiver_id = :receiver_id,
+                last_previous_sender_id = :last_previous_sender_id",
         named_params! {
             ":dh_public": dh_public,
             ":dh_private": dh_private,
@@ -177,7 +184,8 @@ impl ChatState {
             ":receiver_input": receiver_input,
             ":root_id": self.root_chain.id,
             ":sender_id": self.sender_chain.id,
-            ":receiver_id": self.receiver_chain.id
+            ":receiver_id": self.receiver_chain.id,
+            ":last_previous_sender_id": self.last_previous_sender_id
         })
     }
     pub fn load(user: &User, connection: &Connection, chat_id: &str) -> rusqlite::Result<Self> {
@@ -196,10 +204,12 @@ impl ChatState {
                     receiver_chain: row_to_chain(row, "receiver")?,
                     receiver_used_keys: None,
                     sender_chain: row_to_chain(row, "sender")?,
-                    root_chain: row_to_chain(row, "root")?
+                    root_chain: row_to_chain(row, "root")?,
+                    last_previous_sender_id: row.get("last_previous_sender_id")?
                 })
             })
     }
+    #[inline]
     pub fn get_last_received_id(&self) -> u32 {
         self.receiver_chain.id
     }

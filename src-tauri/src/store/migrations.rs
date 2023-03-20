@@ -48,7 +48,8 @@ pub fn make_migrations(connection: &mut Connection) {
             receiver_input_bytes BLOB NOT NULL,
             receiver_id INTEGER NOT NULL,
             PRIMARY KEY (chat_id, user_id)
-        );")
+        );"),
+        M::up("ALTER TABLE rachet_state ADD COLUMN last_previous_sender_id INTEGER NOT NULL;"),
     ]);
     migration.to_latest(connection).unwrap();
 }

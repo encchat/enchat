@@ -75,7 +75,7 @@ mod tests {
         let message = "Hello World".as_bytes();
         let ad = "AD".as_bytes();
         let encrypted = super::encrypt(&key, message, ad);
-        let mut ad = "ADE".as_bytes();
+        let ad = "ADE".as_bytes();
         let decrypted = super::decrypt(&key, &encrypted, ad);
         assert!(decrypted.is_err());
     }
