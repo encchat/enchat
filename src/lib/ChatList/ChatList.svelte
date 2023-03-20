@@ -52,7 +52,7 @@ const enterChat = (chat: Chat) => {
 
 </script>
 
-<div class="flex flex-col font-sans w-full text-white">
+<div class="flex flex-col font-sans w-full text-white basis-11/12">
     <div class="text-xl w-full text-center mb-3">Chat list</div>
     <div>
         {#await getAndMapChats()}

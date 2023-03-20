@@ -13,6 +13,7 @@ module.exports = {
         'link': '#1DC8D7',
         'currentIndicator': '#888888',
         'separator': '#444444',
+        'you': '#777777',
       }
     },
     fontFamily: {
