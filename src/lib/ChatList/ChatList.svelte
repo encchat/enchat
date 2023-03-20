@@ -62,7 +62,7 @@ const enterChat = (chat: Chat) => {
                 <div class={`flex mx-5 px-1 items-center gap-2 py-1 ${chat.chatId == $currentChat?.chatId && 'border-l-2 border-neutral-400 bg-currentIndicator'}`}
                     on:click={() => enterChat(chat)}>
                     <Avatar avatarUrl={chat.chatAvatarUrl} />
-                    <div>{chat.chatName}</div>
+                    <div>{chat.chatNickname}</div>
                 </div>
             {/each}
         {/await}
