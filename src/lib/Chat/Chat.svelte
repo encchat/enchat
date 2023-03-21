@@ -41,7 +41,6 @@ const fetchMessages = async (chatId: string) => {
 
 const changeChat = async (chat: Chat | null) => {
     if (!chat) return
-    debugger
     console.log('Chat change')
     console.log(user)
     if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
