@@ -12,14 +12,17 @@ export interface Database {
       chat: {
         Row: {
           created_at: string | null
+          creator: string
           id: string
         }
         Insert: {
           created_at?: string | null
+          creator: string
           id?: string
         }
         Update: {
           created_at?: string | null
+          creator?: string
           id?: string
         }
       }
@@ -157,6 +160,12 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
+      create_chat: {
+        Args: {
+          user_id: string
+        }
+        Returns: string
+      }
       get_onetime_key: {
         Args: {
           user_id: string
@@ -168,6 +177,30 @@ export interface Database {
           local_id: number
           used: boolean | null
           user: string
+        }[]
+      }
+      get_user_by_id: {
+        Args: {
+          user_id: string
+        }
+        Returns: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          username: string | null
+        }[]
+      }
+      get_user_by_username: {
+        Args: {
+          name: string
+        }
+        Returns: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          username: string | null
         }[]
       }
       is_member_of: {

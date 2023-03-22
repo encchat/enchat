@@ -11,11 +11,11 @@ export let user: User;
 
 <div class="flex w-full h-full">
     <div class="flex flex-col w-1/4 max-w-[25%] border-4 border-solid border-separator border-collapse">
-        <UserSearch/>
+        <UserSearch user={user}/>
         <ChatList user={user}/>
         <AccountSetup user={user}/>
     </div>
-    <div class="flex flex-col basis-3/4 border-4 border-solid border-separator border-collapse">
+    <div class="flex flex-col max-w-[75%] basis-3/4 border-4 border-solid border-separator border-collapse">
         <ChatInfo/>
         <Chat user={user}/>
     </div>

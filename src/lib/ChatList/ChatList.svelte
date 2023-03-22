@@ -1,9 +1,8 @@
 <script lang="ts">
-import type { User } from "@supabase/supabase-js";
 import { supabaseClient } from "src/supabase";
 import Avatar from "../Avatar.svelte";
 import { currentChat, type Chat } from "../Chat/chatStore";
-
+import { chatCounter } from '../../store'
 export let user: User.User;
 
 const getFirstMemberOfChat = async (chatId: string) => {
@@ -55,16 +54,18 @@ const enterChat = (chat: Chat) => {
 <div class="flex flex-col font-sans w-full text-white basis-11/12">
     <div class="text-xl w-full text-center mb-3">Chat list</div>
     <div>
-        {#await getAndMapChats()}
-            Loading chats
-        {:then chats} 
-            {#each chats as chat}
-                <div class={`flex mx-5 px-1 items-center gap-2 py-1 ${chat.chatId == $currentChat?.chatId && 'border-l-2 border-neutral-400 bg-currentIndicator'}`}
-                    on:click={() => enterChat(chat)}>
-                    <Avatar avatarUrl={chat.chatAvatarUrl} />
-                    <div>{chat.chatNickname}</div>
-                </div>
-            {/each}
-        {/await}
+        {#key  $chatCounter}
+            {#await getAndMapChats()}
+                Loading chats
+            {:then chats} 
+                {#each chats as chat}
+                    <div class={`flex mx-5 px-1 items-center gap-2 py-1 ${chat.chatId == $currentChat?.chatId && 'border-l-2 border-neutral-400 bg-currentIndicator'}`}
+                        on:click={() => enterChat(chat)}>
+                        <Avatar avatarUrl={chat.chatAvatarUrl} />
+                        <div class="overflow-hidden text-ellipsis">{chat.chatNickname}</div>
+                    </div>
+                {/each}
+            {/await}
+        {/key}
     </div>
 </div>

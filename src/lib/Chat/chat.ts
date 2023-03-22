@@ -121,3 +121,27 @@ export const sendMessage = async (chatId: string, message: string, userId: strin
         content: JSON.stringify(res)
     }).select('id')
 }
+
+interface Response {
+    id: string;
+    isNew: boolean;
+}
+export const startChat = async (otherPartyId: string, currentUserId: string): Promise<Response> => {
+    // We have RLS setup that restricts access to 3rd parties, so if there is no chat with the other party, it will return nothing
+    const existingChat = await supabaseClient.from('chat-party').select('*').eq('user', otherPartyId).limit(1).single()
+    if (existingChat.data) return {id: existingChat.data.chat, isNew: false}
+    const {data} = await supabaseClient.rpc('create_chat', {
+        user_id: currentUserId,
+    })
+    if (!data) throw new Error("Chat could not be created")
+    const partyAddedd = await supabaseClient.from('chat-party').insert({ 
+        chat: data,
+        user: otherPartyId
+    })
+    if (partyAddedd.error) {
+        // Cascade removal of the party
+        await supabaseClient.from('chat').delete().eq('chat', data)
+        throw new Error("Party couldn't be added to the chat")
+    }
+    return {id: data, isNew: true}
+} 

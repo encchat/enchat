@@ -41,8 +41,7 @@ const fetchMessages = async (chatId: string) => {
 
 const changeChat = async (chat: Chat | null) => {
     if (!chat) return
-    console.log('Chat change')
-    console.log(user)
+    console.log(chat)
     if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
         if (await isInitialReceiver(chat.chatId))
             await initialReceiver(chat.chatId, user.id)
@@ -102,11 +101,11 @@ const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
         {#each decryptedMessages as item}
             <div data-index={item.id}  class={`items-end ${item.received ?  '' : 'justify-end'} flex mx-2 my-5`}>
                 {#if item.received}
-                    <div class="h-full origin-top-right" style="transform: translate(0.5rem, -0.5rem);">
+                    <div class="h-full origin-top-right " style="transform: translate(0.5rem, -0.5rem);">
                         <Avatar avatarUrl={$currentChat.chatAvatarUrl}/>
                     </div>
                 {/if}
-                <div class="py-2 {item.received ? "bg-action" : "bg-you"} pr-3 px-2 rounded-[10px] text-white">
+                <div class="py-2 {item.received ? "bg-action" : "bg-you"} pr-3 px-2 rounded-[10px] text-white break-all max-w-[70%]">
                     {item.text}
                 </div>
             </div>
