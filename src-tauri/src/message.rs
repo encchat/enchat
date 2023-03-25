@@ -20,6 +20,7 @@ pub struct Message {
     pub header: MessageHeader,
     pub ciphertext: Vec<u8>,
 }
+
 #[derive(Deserialize, Serialize, Clone)]
 
 pub struct MessageHeader {

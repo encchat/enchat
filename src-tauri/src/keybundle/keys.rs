@@ -179,6 +179,14 @@ pub enum MessageKeyType {
     Receiving,
     Sending
 }
+impl MessageKeyType {
+    pub fn from_receiving(receiving: bool) -> Self {
+        match receiving {
+            true => MessageKeyType::Receiving,
+            false => MessageKeyType::Sending
+        }
+    }
+}
 
 pub fn save_message_key(message_key_type: MessageKeyType, message_id: u32, key: &Otherkey, user: &User, chat_id: &str, connection: &Connection) {
     let received = matches!(message_key_type, MessageKeyType::Receiving);
