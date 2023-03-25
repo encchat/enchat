@@ -25,7 +25,6 @@ fn get_nonce(message_id: u32) -> Vec<u8> {
     let mut nonce = vec![0u8; 15];
     get_rng().fill_bytes(&mut nonce[0..15]);
     nonce.extend_from_slice(&message_id.to_be_bytes());
-    dbg!(&nonce);
     nonce
 }
 
@@ -131,6 +130,9 @@ mod tests {
         let content = [79u8; 5124];
         let mut key: [u8;32] = [0u8; 32];
         get_rng().fill_bytes(&mut key);
+        // Drop ownership as soon as possible so we can create new instance for write or read later
+        // We could open with rw options, but then we need to seek to the beginning of the file
+        // This is cleaner and more explicit
         {
             let mut to_be_encrypted = File::create("/tmp/enchat-test.txt").unwrap();
             to_be_encrypted.write_all(&content).unwrap();
