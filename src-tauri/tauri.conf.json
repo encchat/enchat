@@ -18,9 +18,19 @@
         "request": true,
         "scope": ["https://*.auth0.com/oauth/token"]
       },
+      "fs": {
+        "readFile": true,
+        "removeFile": true,
+        "writeFile": true,
+        "scope": ["$TEMP/*"]
+      },
       "shell": {
         "all": false,
         "open": true
+      },
+      "dialog": {
+        "open": true,
+        "save": true
       }
     },
     "bundle": {

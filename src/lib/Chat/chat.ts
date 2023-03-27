@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api"
 import { IdentityKey, OnetimeKey, populateKey, Prekey } from "src/Keys"
 import { supabaseClient } from "src/supabase"
+import { AttachementUpload } from "./Attachment/attachements";
 
 interface MessageEntry {
     id: number;
@@ -11,7 +12,8 @@ interface MessageEntry {
 export interface DecryptedMessage {
     text: string
     id: number,
-    received?: boolean
+    received?: boolean,
+    localId: number
 }
 
 export const isInitialReceiver = async (chatId: string) => {
@@ -86,14 +88,16 @@ export const decryptMessages = async (chatId: string, message: MessageEntry, use
         return {
             text,
             id: message.id,
-            received
+            received,
+            localId: parsed.header.id
         }
     } catch (err) {
         console.error(err)
         return {
             text: 'Decryption failed',
             id: message.id,
-            received: message.sender_id != userId
+            received: message.sender_id != userId,
+            localId: -1
         }
     }
 }
@@ -109,17 +113,36 @@ export async function* getMessages (chatId: string, userId: string, skip: number
     }
 }
 
-export const sendMessage = async (chatId: string, message: string, userId: string) => {
-    const res = await invoke('send', {
+interface Message {
+    ciphertext: string;
+    header: {
+        initial?: {
+            ephemeral: Array<number>;
+            onetime_key_id: number;
+            prekey_id: number;
+        };
+        id: number;
+        rachet_key: Array<number>;
+        previous_receiver_length: number;
+    }   
+}
+export const sendMessage = async (chatId: string, message: string, userId: string, selectedFiles: string[]) => {
+    const mess = await invoke<Message>('send', {
         chatId,
         message
     })
-    console.log(JSON.stringify(res))
-    return await supabaseClient.from('chat-message').insert({
+    const res = await supabaseClient.from('chat-message').insert({
         chat_id: chatId,
         sender_id: userId,
-        content: JSON.stringify(res)
+        content: JSON.stringify(mess)
     }).select('id')
+    if (!res.data[0].id) return res
+    for (const file of selectedFiles) {
+        const upload = new AttachementUpload(file, mess.header.id, chatId)
+        await upload.encrypt()
+        await upload.upload(res.data[0].id)
+    }
+    return res
 }
 
 interface Response {

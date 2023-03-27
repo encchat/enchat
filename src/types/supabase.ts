@@ -49,6 +49,26 @@ export interface Database {
           sender_id?: string
         }
       }
+      "chat-message-attachment": {
+        Row: {
+          created_at: string | null
+          id: string
+          info: Json
+          message: number
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          info: Json
+          message: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          info?: Json
+          message?: number
+        }
+      }
       "chat-party": {
         Row: {
           chat: string

@@ -2,6 +2,8 @@
 import type { User } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api";
 import Avatar from "../Avatar.svelte";
+import AttachmentList from "./Attachment/AttachmentList.svelte";
+import Uploader from "./Attachment/Uploader.svelte";
 import { getMessages, initialReceiver, initialSender, isInitialReceiver, sendMessage, type DecryptedMessage } from "./chat";
 
 import { currentChat, type Chat } from "./chatStore";
@@ -55,7 +57,7 @@ const changeChat = async (chat: Chat | null) => {
 
 
 const send = async () => {
-    const res = await sendMessage($currentChat.chatId, message, user.id)
+    const res = await sendMessage($currentChat.chatId, message, user.id, selectedFiles)
     decryptedMessages = [ ...decryptedMessages, {
         text: message,
         id: res.data[0].id
@@ -91,6 +93,8 @@ const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
     }
 }
 
+let selectedFiles: string[]
+
 </script>
 
 {#if $currentChat}
@@ -107,12 +111,14 @@ const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
                 {/if}
                 <div class="py-2 {item.received ? "bg-action" : "bg-you"} pr-3 px-2 rounded-[10px] text-white break-all max-w-[70%]">
                     {item.text}
+                    <AttachmentList localMessageId={item.localId} messageId={item.id} receiving={item.received}/>
                 </div>
             </div>
         {/each}
     </div>
     <form on:submit|preventDefault={send} class="px-6 flex pb-2">
         <input type="text" bind:value={message} placeholder="Type a message" class="bg-silver border-2 border-neutral-500 flex-1 px-2 py-1 rounded-lg">
+        <Uploader bind:selectedFiles/>
         <button type="submit" class="pl-2 pb-2 text-neutral-500">
             <svg style="transform: rotate(-45deg);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 stroke-2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />

@@ -78,15 +78,14 @@ fn encrypt(nonce: &[u8], source: &mut File, output: &mut File, message_key: &[u8
 }
 
 #[tauri::command]
-pub fn decrypt_and_open(info: FileInfo, receiving: bool, message_id: u32, input_path: PathBuf, output_path: PathBuf, chat_id: String,
+pub fn decrypt_and_open(info: FileInfo, receiving: bool, message_id: u32, input_filename: String, output_path: PathBuf, chat_id: String,
         db_state: State<DatabaseState>, user_state: State<UserState>, chat_state: State<WrappedChatState>) -> CommandResult<()> {
     let message_key = with_state!(chat_state, user_state, db_state, |_chat, user, conn| {
         read_message_key(MessageKeyType::from_receiving(receiving), message_id, &chat_id, &user, &conn).context("Message key for the file not found, have you received the message?")?
     });
     let mut output = File::create(&output_path)?;
-    let mut source = File::open(input_path)?;
+    let mut source = File::open(std::env::temp_dir().join(input_filename))?;
     decrypt_file(&info.nonce, &mut source, &mut output, &message_key).unwrap();
-    open::that_in_background(&output_path);
     Ok(())
 }
 #[derive(serde::Serialize)]
