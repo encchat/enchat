@@ -66,13 +66,13 @@ export const initialReceiver = async (chatId: string, userId: string) => {
     await invoke('enter_chat', {
         chatId,
         senderIdentity: senderIdentity.key,
-        receivedMessage: JSON.parse(firstMessage.data.content as string)
+        receivedMessage: firstMessage.data.content
     })
 }
 
 export const decryptMessages = async (chatId: string, message: MessageEntry, userId: string): Promise<DecryptedMessage> => {
     try {
-        const parsed = JSON.parse(message.content)
+        const parsed = message.content
         const received = message.sender_id != userId
         let decryptedBytes = await invoke<Array<number>>('try_decrypt', {
             chatId,
@@ -134,7 +134,7 @@ export const sendMessage = async (chatId: string, message: string, userId: strin
     const res = await supabaseClient.from('chat-message').insert({
         chat_id: chatId,
         sender_id: userId,
-        content: JSON.stringify(mess)
+        content: mess
     }).select('id')
     if (!res.data[0].id) return res
     for (const file of selectedFiles) {
