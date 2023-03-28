@@ -3,7 +3,7 @@ import { IdentityKey, OnetimeKey, populateKey, Prekey } from "src/Keys"
 import { supabaseClient } from "src/supabase"
 import { showError } from "src/toasts";
 import { AttachementUpload, AttachmentStatus, type ChangeStatusFunction } from "./Attachment/attachements";
-interface MessageEntry {
+export interface MessageEntry {
     id: number;
     content: string,
     sender_id: string;
@@ -70,7 +70,7 @@ export const initialReceiver = async (chatId: string, userId: string) => {
     })
 }
 
-export const decryptMessages = async (chatId: string, message: MessageEntry, userId: string): Promise<DecryptedMessage> => {
+export const decryptMessage = async (chatId: string, message: MessageEntry, userId: string): Promise<DecryptedMessage> => {
     try {
         const parsed = message.content
         const received = message.sender_id != userId
@@ -110,7 +110,7 @@ export async function* getMessages (chatId: string, userId: string, skip: number
         .range(skip, skip + limit)
     console.log(messages)
     for (const message of messages.data ?? []) {
-        yield await decryptMessages(chatId, message, userId)
+        yield await decryptMessage(chatId, message, userId)
     }
 }
 

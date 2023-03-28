@@ -1,13 +1,15 @@
 <script lang="ts">
 import type { User } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api";
+import { supabaseClient } from "src/supabase";
 import { showError } from "src/toasts";
+import { onMount } from "svelte";
 import Avatar from "../Avatar.svelte";
 import type { ChangeStatusFunction } from "./Attachment/attachements";
 import AttachmentList from "./Attachment/AttachmentList.svelte";
 import Uploader from "./Attachment/Uploader.svelte";
 import Uploading from './Attachment/Uploading.svelte'
-import { getMessages, initialReceiver, initialSender, isInitialReceiver, sendMessage, type DecryptedMessage } from "./chat";
+import { decryptMessage, getMessages, initialReceiver, initialSender, isInitialReceiver, sendMessage, type DecryptedMessage, type MessageEntry } from "./chat";
 
 import { currentChat, type Chat } from "./chatStore";
 
@@ -27,6 +29,15 @@ const jumpTo = (id?: number) => {
         console.log(element)
         if (element) element.scrollIntoView()
     })
+}
+
+const newMessageArrived = async (message: any) => {
+    console.log(message)
+    if (message.new.sender_id == user.id) return
+    const decrypted = await decryptMessage($currentChat.chatId, message.new, user.id)
+    decryptedMessages = [ ...decryptedMessages, decrypted]
+    jumpTo()
+    setupPagination()
 }
 
 const fetchMessages = async (chatId: string) => {
@@ -61,7 +72,21 @@ const changeChat = async (chat: Chat | null) => {
     jumpTo()
     setupPagination()
 }
-
+let subscription
+onMount(() => {
+    console.log('mount')
+    const chatId = $currentChat?.chatId
+    if (!chatId) return
+    subscription = supabaseClient.channel('table-db-changes')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat-message',
+            filter: `chat_id=eq.${chatId}`,
+        }, newMessageArrived)
+        .subscribe()
+    console.log(subscription)
+})
 
 const send = async () => {
     try {
