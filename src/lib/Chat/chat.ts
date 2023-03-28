@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api"
 import { IdentityKey, OnetimeKey, populateKey, Prekey } from "src/Keys"
 import { supabaseClient } from "src/supabase"
-import { AttachementUpload } from "./Attachment/attachements";
-
+import { showError } from "src/toasts";
+import { AttachementUpload, AttachmentStatus, type ChangeStatusFunction } from "./Attachment/attachements";
 interface MessageEntry {
     id: number;
     content: string,
@@ -84,6 +84,7 @@ export const decryptMessages = async (chatId: string, message: MessageEntry, use
                 chatId,
                 message: parsed,
             })
+        if (!decryptedBytes) throw new Error("The message could not be decrypted. Either the key is wrong or the message got corrupted.")
         const text = new TextDecoder().decode(Uint8Array.from(decryptedBytes))
         return {
             text,
@@ -92,7 +93,7 @@ export const decryptMessages = async (chatId: string, message: MessageEntry, use
             localId: parsed.header.id
         }
     } catch (err) {
-        console.error(err)
+        showError(err.message)
         return {
             text: 'Decryption failed',
             id: message.id,
@@ -126,7 +127,7 @@ interface Message {
         previous_receiver_length: number;
     }   
 }
-export const sendMessage = async (chatId: string, message: string, userId: string, selectedFiles: string[]) => {
+export const sendMessage = async (chatId: string, message: string, userId: string, selectedFiles: string[], changeStatus: ChangeStatusFunction) => {
     const mess = await invoke<Message>('send', {
         chatId,
         message
@@ -137,10 +138,13 @@ export const sendMessage = async (chatId: string, message: string, userId: strin
         content: mess
     }).select('id')
     if (!res.data[0].id) return res
-    for (const file of selectedFiles) {
+    for (const [index, file] of selectedFiles.entries()) {
         const upload = new AttachementUpload(file, mess.header.id, chatId)
+        changeStatus(index, AttachmentStatus.Encrypting)
         await upload.encrypt()
+        changeStatus(index, AttachmentStatus.Uploading)
         await upload.upload(res.data[0].id)
+        changeStatus(index, AttachmentStatus.Done)
     }
     return res
 }

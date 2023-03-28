@@ -1,6 +1,16 @@
 import { fs, invoke } from "@tauri-apps/api";
 import { supabaseClient } from "src/supabase";
 
+export type ChangeStatusFunction = (index: number, status: AttachmentStatus) => void
+
+export enum AttachmentStatus {
+    Encrypting,
+    Uploading,
+    Done,
+    Waiting,
+    Downloading,
+    Decrypting,
+}
 class BaseAttachment {
     constructor(protected path: string, protected messageId: number, protected chatId: string) {}
 }

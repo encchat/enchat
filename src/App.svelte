@@ -4,6 +4,8 @@ import KeyManager from './lib/KeyManager.svelte';
 import Login from './lib/Login/Login.svelte';
 import {isAuthenticated} from './store'
 import { supabaseClient } from './supabase';
+import { SvelteToast } from '@zerodevx/svelte-toast';
+
 const getCurrentUser = async () => {
   const {data} = await supabaseClient.auth.getUser()
   console.log("Getting current user")
@@ -11,6 +13,8 @@ const getCurrentUser = async () => {
   return data.user
 }
 </script>
+
+<SvelteToast/>  
 
 <main class="w-screen h-screen">
   {#await $isAuthenticated}
@@ -47,5 +51,9 @@ const getCurrentUser = async () => {
       src: url('Inter.ttf');
       font-weigth: 400 500 600;
     }
+  }
+  :global(.toast-error) {
+    --toastBackground: #C73E1D;
+    --toastColor: #fff;
   }
 </style>

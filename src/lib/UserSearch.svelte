@@ -3,22 +3,27 @@ import type { User } from "@supabase/supabase-js";
 import { chatCounter } from "src/store";
 
 import { supabaseClient } from "src/supabase";
+import { showError } from "src/toasts";
 import { startChat } from "./Chat/chat";
 import { currentChat } from "./Chat/chatStore";
 
 export let user: User;
 let search: string = ""
 const searchForUser = async () => {
-    const {data, error} = await supabaseClient.rpc('get_user_by_username', {name: search})
-    if (data.length == 0) return;
-    const newChat = await startChat(data[0].id, user.id)
-    currentChat.set({
-        chatId: newChat.id,
-        chatAvatarUrl: data[0].avatar_url,
-        chatNickname: data[0].username
-    })
-    chatCounter.set($chatCounter + 1)
-
+    try {
+        const {data, error} = await supabaseClient.rpc('get_user_by_username', {name: search})
+        if (data.length == 0) return;
+        const newChat = await startChat(data[0].id, user.id)
+        currentChat.set({
+            chatId: newChat.id,
+            chatAvatarUrl: data[0].avatar_url,
+            chatNickname: data[0].username
+        })
+        chatCounter.set($chatCounter + 1)
+    }
+    catch (err) {
+        showError(err.message)
+    }
 }
 </script>
 <form class="flex overflow-hidden max-w-[100%]" on:submit|preventDefault={searchForUser}>

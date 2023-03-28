@@ -1,9 +1,12 @@
 <script lang="ts">
 import type { User } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api";
+import { showError } from "src/toasts";
 import Avatar from "../Avatar.svelte";
+import type { ChangeStatusFunction } from "./Attachment/attachements";
 import AttachmentList from "./Attachment/AttachmentList.svelte";
 import Uploader from "./Attachment/Uploader.svelte";
+import Uploading from './Attachment/Uploading.svelte'
 import { getMessages, initialReceiver, initialSender, isInitialReceiver, sendMessage, type DecryptedMessage } from "./chat";
 
 import { currentChat, type Chat } from "./chatStore";
@@ -44,26 +47,36 @@ const fetchMessages = async (chatId: string) => {
 const changeChat = async (chat: Chat | null) => {
     if (!chat) return
     console.log(chat)
-    if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
-        if (await isInitialReceiver(chat.chatId))
-            await initialReceiver(chat.chatId, user.id)
-        else await initialSender(chat.chatId, user.id)
-            
+    try {
+        if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
+            if (await isInitialReceiver(chat.chatId))
+                await initialReceiver(chat.chatId, user.id)
+            else await initialSender(chat.chatId, user.id)
+
+        }
+        await fetchMessages(chat.chatId)
+    } catch (e) {
+        showError(e.message)
     }
-    await fetchMessages(chat.chatId)
     jumpTo()
     setupPagination()
 }
 
 
 const send = async () => {
-    const res = await sendMessage($currentChat.chatId, message, user.id, selectedFiles)
-    decryptedMessages = [ ...decryptedMessages, {
-        text: message,
-        id: res.data[0].id
-    },]
-    jumpTo()
-    setupPagination()
+    try {
+        const res = await sendMessage($currentChat.chatId, message, user.id, selectedFiles, changeStatus)
+        decryptedMessages = [ ...decryptedMessages, {
+            text: message,
+            id: res.data[0].id
+        }]
+        jumpTo()
+        setupPagination()
+        selectedFiles = []
+        message = ""
+    } catch (e) {
+        showError(e.message)
+    }
 }
 
 let observer: IntersectionObserver;
@@ -94,6 +107,7 @@ const lastItemOnVisible = (entries: IntersectionObserverEntry[]) => {
 }
 
 let selectedFiles: string[]
+let changeStatus: ChangeStatusFunction = () => ({})
 
 </script>
 
@@ -125,6 +139,7 @@ let selectedFiles: string[]
             </svg>
         </button>
     </form>
+    <Uploading bind:selectedFiles bind:changeStatus/>
 {/await}
 {:else}
     <h1>Your chat will be visible here</h1>
