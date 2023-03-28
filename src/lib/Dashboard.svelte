@@ -5,7 +5,7 @@ import Chat from "./Chat/Chat.svelte";
 import ChatInfo from "./Chat/ChatInfo.svelte";
 import ChatList from "./ChatList/ChatList.svelte";
 import UserSearch from "./UserSearch.svelte";
-
+import {currentChat} from './Chat/chatStore'
 export let user: User;
 </script>
 
@@ -17,6 +17,8 @@ export let user: User;
     </div>
     <div class="flex flex-col max-w-[75%] basis-3/4 border-4 border-solid border-separator border-collapse">
         <ChatInfo/>
-        <Chat user={user}/>
+        {#key $currentChat}
+            <Chat user={user}/>
+        {/key}
     </div>
 </div>
