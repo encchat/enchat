@@ -3,6 +3,7 @@ import { supabaseClient } from "src/supabase";
 import Avatar from "../Avatar.svelte";
 import { currentChat, type Chat } from "../Chat/chatStore";
 import { chatCounter } from '../../store'
+import { onMount } from "svelte";
 export let user: User.User;
 
 const getFirstMemberOfChat = async (chatId: string) => {
@@ -28,6 +29,7 @@ const getAllChats = async () => {
 }
 
 const getAndMapChats = async () => {
+    console.log('mapping')
     const allChats = await getAllChats();
     const chats: Chat[] = [];
     for (const chat of allChats) {
@@ -48,6 +50,16 @@ const enterChat = (chat: Chat) => {
     console.log('Setting the chat')
     currentChat.set(chat)
 }
+let subscription;
+onMount(() => {
+    subscription = supabaseClient.channel('table-db-changes')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat-party',
+        }, () => chatCounter.set($chatCounter + 1))
+        .subscribe((status) => console.log(status))
+})
 
 </script>
 
