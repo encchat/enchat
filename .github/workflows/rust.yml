@@ -23,8 +23,10 @@ jobs:
     - name: Build
       run: |
         cd src-tauri
+        mkdir -p ../dist
         cargo build --verbose
     - name: Run tests
       run: |
         cd src-tauri
+        mkdir -p ../dist
         cargo test --verbose
