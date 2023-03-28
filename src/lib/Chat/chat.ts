@@ -16,11 +16,29 @@ export interface DecryptedMessage {
     localId: number
 }
 
-export const isInitialReceiver = async (chatId: string) => {
+const statusCache: Record<string, boolean> = {}
+
+export const isInitialReceiver = async (chatId: string, userId: string) => withCache(chatId, async () => {
+    const messages = await supabaseClient.from('chat-message').select('*', {count: "estimated"}).eq('chat_id', chatId).eq('sender_id', userId)
+    return messages.count == 0
+})
+
+export const isInitialSender = async (chatId: string) => withCache(chatId, async () => {
     const messages = await supabaseClient.from('chat-message').select('*', {count: "estimated"}).eq('chat_id', chatId)
-    console.log(messages)
-    return messages.count > 0
+    return messages.count == 0
+})
+
+// We don't want to call the initial checks every time we send/receive messages as they are time consuming
+// Once we know this isn't a initial message, we don't have to anymore
+const withCache = async (chatId: string, callback: () => Promise<boolean>): Promise<boolean> => {
+    if (statusCache[chatId] === false) return statusCache[chatId]
+    const res = await callback()
+    if (!res) statusCache[chatId] = res
+    return res
 }
+
+export const changeCache = (chatId: string, value: boolean) => statusCache[chatId] = value
+
 export const initialSender = async (chatId: string, userId: string) => {
     const {data, error} = await supabaseClient.from('chat-party')
         .select('user')
@@ -31,7 +49,7 @@ export const initialSender = async (chatId: string, userId: string) => {
     const receiverIdentity = await populateKey(data.user, IdentityKey);
     const receiverPrekey = await populateKey(data.user, Prekey)
     const receiverOnetime = await populateKey(data.user, OnetimeKey)
-    const res = await invoke('enter_chat', {
+    await invoke('enter_chat', {
         chatId,
         receiverKeys: {
             receiver_prekey: receiverPrekey.key,
@@ -41,7 +59,7 @@ export const initialSender = async (chatId: string, userId: string) => {
             receiver_prekey_id: 1
         }
     })
-
+    changeCache(chatId, false)
 }
 
 export const initialReceiver = async (chatId: string, userId: string) => {
@@ -68,10 +86,15 @@ export const initialReceiver = async (chatId: string, userId: string) => {
         senderIdentity: senderIdentity.key,
         receivedMessage: firstMessage.data.content
     })
+    changeCache(chatId, false)
 }
 
 export const decryptMessage = async (chatId: string, message: MessageEntry, userId: string): Promise<DecryptedMessage> => {
     try {
+        console.log(message)
+        if (await isInitialReceiver(chatId, userId)) {
+            await initialReceiver(chatId, userId)
+        }
         const parsed = message.content
         const received = message.sender_id != userId
         let decryptedBytes = await invoke<Array<number>>('try_decrypt', {

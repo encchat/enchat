@@ -9,7 +9,7 @@ import type { ChangeStatusFunction } from "./Attachment/attachements";
 import AttachmentList from "./Attachment/AttachmentList.svelte";
 import Uploader from "./Attachment/Uploader.svelte";
 import Uploading from './Attachment/Uploading.svelte'
-import { decryptMessage, getMessages, initialReceiver, initialSender, isInitialReceiver, sendMessage, type DecryptedMessage, type MessageEntry } from "./chat";
+import { decryptMessage, getMessages, initialReceiver, initialSender, isInitialReceiver, isInitialSender, sendMessage, type DecryptedMessage, type MessageEntry } from "./chat";
 
 import { currentChat, type Chat } from "./chatStore";
 
@@ -57,14 +57,8 @@ const fetchMessages = async (chatId: string) => {
 
 const changeChat = async (chat: Chat | null) => {
     if (!chat) return
-    console.log(chat)
     try {
-        if (!await invoke('reenter_chat', {chatId: chat.chatId})) {
-            if (await isInitialReceiver(chat.chatId))
-                await initialReceiver(chat.chatId, user.id)
-            else await initialSender(chat.chatId, user.id)
-
-        }
+        await invoke('reenter_chat', {chatId: chat.chatId})
         await fetchMessages(chat.chatId)
     } catch (e) {
         showError(e.message)
@@ -90,7 +84,12 @@ onMount(() => {
 
 const send = async () => {
     try {
-        const res = await sendMessage($currentChat.chatId, message, user.id, selectedFiles, changeStatus)
+        const chatId = $currentChat.chatId
+        if (await isInitialSender(chatId)) {
+            await initialSender(chatId, user.id)
+        }
+        const res = await sendMessage(chatId, message, user.id, selectedFiles, changeStatus)
+        console.log(res)
         decryptedMessages = [ ...decryptedMessages, {
             text: message,
             id: res.data[0].id
