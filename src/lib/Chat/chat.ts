@@ -106,6 +106,7 @@ export async function* getMessages (chatId: string, userId: string, skip: number
     const messages =  await supabaseClient.from('chat-message')
         .select('sender_id, content, id')
         .eq('chat_id', chatId)
+        .eq('ready', true)
         .order("created_at", {ascending: false})
         .range(skip, skip + limit)
     console.log(messages)
@@ -138,14 +139,20 @@ export const sendMessage = async (chatId: string, message: string, userId: strin
         content: mess
     }).select('id')
     if (!res.data[0].id) return res
-    for (const [index, file] of selectedFiles.entries()) {
-        const upload = new AttachementUpload(file, mess.header.id, chatId)
-        changeStatus(index, AttachmentStatus.Encrypting)
-        await upload.encrypt()
-        changeStatus(index, AttachmentStatus.Uploading)
-        await upload.upload(res.data[0].id)
-        changeStatus(index, AttachmentStatus.Done)
+    try {
+        for (const [index, file] of selectedFiles.entries()) {
+            const upload = new AttachementUpload(file, mess.header.id, chatId)
+            changeStatus(index, AttachmentStatus.Encrypting)
+            await upload.encrypt()
+            changeStatus(index, AttachmentStatus.Uploading)
+            await upload.upload(res.data[0].id)
+            changeStatus(index, AttachmentStatus.Done)
+        }
+    } catch (err) {
+        await supabaseClient.from('chat-message').delete().eq('id', res.data[0].id)
+        throw err
     }
+    await supabaseClient.from('chat-message').update({ready: true}).eq('id', res.data[0].id)
     return res
 }
 

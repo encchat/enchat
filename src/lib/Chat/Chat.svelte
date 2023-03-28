@@ -79,7 +79,7 @@ onMount(() => {
     if (!chatId) return
     subscription = supabaseClient.channel('table-db-changes')
         .on('postgres_changes', {
-            event: 'INSERT',
+            event: 'UPDATE',
             schema: 'public',
             table: 'chat-message',
             filter: `chat_id=eq.${chatId}`,

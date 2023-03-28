@@ -32,6 +32,7 @@ export interface Database {
           content: Json
           created_at: string | null
           id: number
+          ready: boolean
           sender_id: string
         }
         Insert: {
@@ -39,6 +40,7 @@ export interface Database {
           content: Json
           created_at?: string | null
           id?: number
+          ready?: boolean
           sender_id: string
         }
         Update: {
@@ -46,6 +48,7 @@ export interface Database {
           content?: Json
           created_at?: string | null
           id?: number
+          ready?: boolean
           sender_id?: string
         }
       }
@@ -58,7 +61,7 @@ export interface Database {
         }
         Insert: {
           created_at?: string | null
-          id: string
+          id?: string
           info: Json
           message: number
         }
@@ -227,6 +230,13 @@ export interface Database {
         Args: {
           user_id: string
           chat_id: string
+        }
+        Returns: boolean
+      }
+      is_recipient_of: {
+        Args: {
+          user_id: string
+          message_id: number
         }
         Returns: boolean
       }
