@@ -36,7 +36,7 @@ impl Display for KdfOutput {
     }
 }
 pub fn get_keyring_entry(key_type: &str) -> Result<Entry, keyring::Error> {
-    Entry::new_with_target("enchat-keyring","enchat", key_type)
+    Entry::new("enchat", key_type)
 }
 
 pub fn get_key_keyring(key_type: &str) -> Option<String> {
