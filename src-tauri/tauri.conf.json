@@ -19,10 +19,6 @@
         "writeFile": true,
         "scope": ["$TEMP/*"]
       },
-      "shell": {
-        "all": false,
-        "open": true
-      },
       "dialog": {
         "open": true,
         "save": true
