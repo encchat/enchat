@@ -928,7 +928,7 @@ dependencies = [
  "hkdf",
  "keyring",
  "log",
- "open 4.0.1",
+ "open",
  "pretty_env_logger",
  "rand 0.8.5",
  "rusqlite",
@@ -2187,16 +2187,6 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "open"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2078c0039e6a54a0c42c28faa984e115fb4c2d5bf2208f77d1961002df8576f8"
-dependencies = [
- "pathdiff",
- "windows-sys 0.42.0",
-]
-
-[[package]]
-name = "open"
 version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "075c5203b3a2b698bc72c6c10b1f6263182135751d5013ea66e8a4b3d0562a43"
@@ -3353,11 +3343,9 @@ dependencies = [
  "ignore",
  "objc",
  "once_cell",
- "open 3.2.0",
  "percent-encoding",
  "rand 0.8.5",
  "raw-window-handle",
- "regex",
  "rfd",
  "semver 1.0.16",
  "serde",
@@ -3409,7 +3397,6 @@ dependencies = [
  "png",
  "proc-macro2",
  "quote",
- "regex",
  "semver 1.0.16",
  "serde",
  "serde_json",

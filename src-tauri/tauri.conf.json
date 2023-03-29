@@ -51,7 +51,11 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [],
+      "resources": [
+        "../public/background.svg",
+        "../public/Inter.ttf",
+        "../public/svelte.svg"
+      ],
       "shortDescription": "",
       "targets": "all",
       "windows": {
