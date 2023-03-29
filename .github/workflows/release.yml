@@ -40,9 +40,9 @@ jobs:
         run: |
           choco install --verbose -y openssl.light
           set OPENSSL_DIR="C:\Program Files\OpenSSL-Win64"
-          curl https://curl.se/ca/cacert.pem
-          set SSL_CERT_FILE=%cd%/cacert.pem
-          echo %SSL_CERT_FILE%
+          curl https://curl.se/ca/cacert.pem -o cacert.pem
+          set SSL_CERT_FILE=cacert.pem
+          echo $SSL_CERT_FILE
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
