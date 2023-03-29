@@ -45,8 +45,6 @@ const getCurrentUser = async () => {
     background-size: cover;
     background-repeat: no-repeat;
     overflow: hidden;
-    width: 100%;
-    height: 100%;
   }
   :root {
     @font-face {
