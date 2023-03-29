@@ -38,12 +38,23 @@ jobs:
       - name: Install OpenSSL (windows only)
         if: matrix.platform == 'windows-latest'
         run: |
-          choco install --verbose -y openssl.light
-          set OPENSSL_DIR="C:\Program Files\OpenSSL-Win64"
-          curl https://curl.se/ca/cacert.pem
-          set SSL_CERT_FILE=%cd%/cacert.pem
-          echo %SSL_CERT_FILE%
+          choco install --verbose -y openssl
+          echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
+          curl https://curl.se/ca/cacert.pem -o C:\cacert.pem
+          echo "SSL_CERT_FILE=C:\cacert.pem" >> $env:GITHUB_ENV
       - uses: tauri-apps/tauri-action@v0
+        if: matrix.platform == 'windows-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
+          releaseName: 'App v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: false
+          args: --features bundled-openssl
+      - uses: tauri-apps/tauri-action@v0
+        if: matrix.platform != 'windows-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
