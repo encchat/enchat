@@ -37,7 +37,12 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Install OpenSSL (windows only)
         if: matrix.platform == 'windows-latest'
-        run: choco install --verbose -y openssl.light
+        run: |
+          choco install --verbose -y openssl.light
+          set OPENSSL_DIR="C:\Program Files\OpenSSL-Win64"
+          curl https://curl.se/ca/cacert.pem
+          set SSL_CERT_FILE=%cd%/cacert.pem
+          echo %SSL_CERT_FILE%
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
