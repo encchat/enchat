@@ -38,7 +38,7 @@ jobs:
       - name: Install OpenSSL (windows only)
         if: matrix.platform == 'windows-latest'
         run: |
-          choco install --verbose -y openssl.light
+          choco install --verbose -y openssl
           echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
           curl https://curl.se/ca/cacert.pem -o C:\cacert.pem
           echo "SSL_CERT_FILE=C:\cacert.pem" >> $env:GITHUB_ENV
