@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { User } from "@supabase/supabase-js";
-import { invoke } from "@tauri-apps/api";
+import { invoke} from "@tauri-apps/api";
 import { supabaseClient } from "src/supabase";
 import { showError } from "src/toasts";
 import { onMount } from "svelte";
@@ -139,7 +139,7 @@ let changeStatus: ChangeStatusFunction = () => ({})
 {#await changeChat($currentChat)}
     <p>Loading chat</p>
 {:then _}
-    <div class="flex flex-col overflow-scroll basis-11/12" bind:this={container}>
+    <div class="flex flex-col overflow-y-scroll basis-11/12 scrollbar-thin scrollbar-thumb-action scrollbar-track-you" bind:this={container}>
         {#each decryptedMessages as item}
             <div data-index={item.id}  class={`items-end ${item.received ?  '' : 'justify-end'} flex mx-2 my-5`}>
                 {#if item.received}

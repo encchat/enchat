@@ -20,5 +20,7 @@ module.exports = {
       'sans': ['Inter', ...defaultTheme.fontFamily.sans]
     }
   },
-  plugins: [],
+  plugins: [
+    require('tailwind-scrollbar')
+  ],
 }

@@ -50,7 +50,7 @@ const getCurrentUser = async () => {
     @font-face {
       font-family: 'Inter';
       src: url('Inter.ttf');
-      font-weigth: 400 500 600;
+      font-weight: 400 500 600;
     }
   }
   :global(.toast-error) {

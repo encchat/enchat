@@ -26,7 +26,7 @@ const remove = (index: number) => {
 }
 </script>
 
-<div class="flex flex-col max-h-[20vh] overflow-scroll">
+<div class="flex flex-col max-h-[20vh] overflow-y-scroll scrollbar-thin scrollbar-thumb-action scrollbar-track-you">
     {#each selectedFiles as file, index}
         <div class="flex flex-col justify-between bg-neutral-800">
             <div class="flex flex-row">
