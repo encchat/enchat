@@ -19,10 +19,6 @@
         "writeFile": true,
         "scope": ["$TEMP/*"]
       },
-      "shell": {
-        "all": false,
-        "open": true
-      },
       "dialog": {
         "open": true,
         "save": true
@@ -55,7 +51,11 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [],
+      "resources": [
+        "../public/background.svg",
+        "../public/Inter.ttf",
+        "../public/svelte.svg"
+      ],
       "shortDescription": "",
       "targets": "all",
       "windows": {

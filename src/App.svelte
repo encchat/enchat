@@ -5,6 +5,7 @@ import Login from './lib/Login/Login.svelte';
 import {isAuthenticated} from './store'
 import { supabaseClient } from './supabase';
 import { SvelteToast } from '@zerodevx/svelte-toast';
+import backgroundPath from '../public/background.svg'
 
 const getCurrentUser = async () => {
   const {data} = await supabaseClient.auth.getUser()
@@ -16,7 +17,7 @@ const getCurrentUser = async () => {
 
 <SvelteToast/>  
 
-<main class="w-screen h-screen">
+<main class="w-screen h-screen" style="background-image: url({backgroundPath})">
   {#await $isAuthenticated}
     <p>...</p>
   {:then isAuthenticated}
@@ -41,9 +42,11 @@ const getCurrentUser = async () => {
   @tailwind utilities;
 
   main {
-    background: url('background.svg');
     background-size: cover;
     background-repeat: no-repeat;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
   }
   :root {
     @font-face {
