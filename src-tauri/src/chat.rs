@@ -18,11 +18,12 @@ fn row_to_chain(row: &Row, chain_name: &str) -> rusqlite::Result<Chain> {
     Ok(chain)
 } 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Chain {
     id: u32,
     input_key: RootKey,
 }
+
 
 pub struct DHRachet {
     our_keypair: Key,
@@ -72,9 +73,9 @@ impl Default for Chain {
 
 pub struct ChatState {
     pub receiver_used_keys: Option<InitialData>,
-    root_chain: Chain,
-    sender_chain: Chain,
-    receiver_chain: Chain,
+    pub(crate) root_chain: Chain,
+    pub(crate) sender_chain: Chain,
+    pub(crate) receiver_chain: Chain,
     rachet: DHRachet,
     pub last_previous_sender_id: u32,
 }
@@ -158,8 +159,8 @@ impl ChatState {
         let dh_public = self.rachet.their_public.as_bytes();
         let dh_private = self.rachet.our_keypair.to_bytes();
         let root_input = &self.root_chain.input_key;
-        let sender_input = &self.receiver_chain.input_key;
-        let receiver_input = &self.sender_chain.input_key;
+        let sender_input = &self.sender_chain.input_key;
+        let receiver_input = &self.receiver_chain.input_key;
         connection.execute("INSERT INTO
             rachet_state(chat_id, user_id, diffie_public_bytes, diffie_private_bytes,
             root_input_bytes, sender_input_bytes, receiver_input_bytes, root_id, sender_id, receiver_id, last_previous_sender_id)

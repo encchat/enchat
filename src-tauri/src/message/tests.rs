@@ -1,18 +1,6 @@
 use crate::{chat::{ChatState}, keybundle::{IdentityKey, StoredKey, ManagedKey}, message::{send_inner, receive_inner, Message}, encryption::PublicKey, user::User, helpers::prepare_database};
+use crate::helpers::{mock_alice_state, mock_bob_state};
 
-
-fn mock_alice_state(bob_keypair: PublicKey) -> (ChatState, User) {
-    let psk = vec![0x02u8; 32];
-    let initial_alice_chat = ChatState::new_sender(&bob_keypair, psk);
-    (initial_alice_chat, User {user_id: Some("1".to_owned())})
-}
-
-fn mock_bob_state(bob_keypair: IdentityKey, alice_public: &PublicKey) -> (ChatState, User) {
-
-    let psk = vec![0x02u8; 32];
-    let initial_alice_chat = ChatState::new_receiver(bob_keypair.get_keypair().clone(), alice_public, psk);
-    (initial_alice_chat, User {user_id: Some("2".to_owned())})
-}
 
 #[test]
 fn bob_should_decrypt_alice_sent_message() {
@@ -91,4 +79,22 @@ pub fn alice_should_pingpong_bob_out_of_order() {
         assert!(decrypted.unwrap() == "test".as_bytes());
         println!("Pass")
     }
+}
+#[test]
+fn bob_should_receive_alice_message_sent_after_alice_chat_reopen() {
+    let db = prepare_database();
+    let bob = IdentityKey::generate();
+    let (mut alice_state, alice_user) = mock_alice_state(bob.get_public_key());
+    let initial_message =
+        send_inner("1".to_owned(), "test".to_owned(), &mut alice_state, &alice_user, &db).unwrap();
+    let (mut bob_state, bob_user) = mock_bob_state(bob, &initial_message.header.rachet_key);
+    receive_inner("1".to_owned(), initial_message, &mut bob_state, &bob_user, &db).unwrap();
+    assert_eq!(bob_state.receiver_chain, alice_state.sender_chain);
+    alice_state = ChatState::load(&alice_user, &db, "1").unwrap();
+    assert_eq!(bob_state.receiver_chain, alice_state.sender_chain);
+    let second_message =
+        send_inner("1".to_owned(), "test2".to_owned(), &mut alice_state, &alice_user, &db).unwrap();
+    let second_decrypted = receive_inner("1".to_owned(), second_message.clone(), &mut bob_state, &bob_user, &db);
+    assert_eq!(bob_state.receiver_chain, alice_state.sender_chain);
+    assert_eq!(second_decrypted.unwrap(), "test2".as_bytes());
 }
