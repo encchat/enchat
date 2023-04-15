@@ -3350,7 +3350,7 @@ dependencies = [
 [[package]]
 name = "tauri"
 version = "1.2.4"
-source = "git+https://github.com/tauri-apps/tauri?branch=dev#cfcc7f3c204af8a62d066e84defb9e9c03ef8092"
+source = "git+https://github.com/korneliuszw/tauri/?branch=dev#7eec42064faebe46858967635ea146ae05af98c1"
 dependencies = [
  "anyhow",
  "cocoa",
@@ -3381,7 +3381,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 1.2.1 (git+https://github.com/tauri-apps/tauri?branch=dev)",
+ "tauri-utils 1.2.1 (git+https://github.com/korneliuszw/tauri/?branch=dev)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -3411,7 +3411,7 @@ dependencies = [
 [[package]]
 name = "tauri-codegen"
 version = "1.2.1"
-source = "git+https://github.com/tauri-apps/tauri?branch=dev#cfcc7f3c204af8a62d066e84defb9e9c03ef8092"
+source = "git+https://github.com/korneliuszw/tauri/?branch=dev#7eec42064faebe46858967635ea146ae05af98c1"
 dependencies = [
  "base64 0.21.0",
  "brotli",
@@ -3425,7 +3425,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "tauri-utils 1.2.1 (git+https://github.com/tauri-apps/tauri?branch=dev)",
+ "tauri-utils 1.2.1 (git+https://github.com/korneliuszw/tauri/?branch=dev)",
  "thiserror",
  "time",
  "uuid 1.3.0",
@@ -3435,20 +3435,20 @@ dependencies = [
 [[package]]
 name = "tauri-macros"
 version = "1.2.1"
-source = "git+https://github.com/tauri-apps/tauri?branch=dev#cfcc7f3c204af8a62d066e84defb9e9c03ef8092"
+source = "git+https://github.com/korneliuszw/tauri/?branch=dev#7eec42064faebe46858967635ea146ae05af98c1"
 dependencies = [
  "heck 0.4.1",
  "proc-macro2",
  "quote",
  "syn 1.0.107",
  "tauri-codegen",
- "tauri-utils 1.2.1 (git+https://github.com/tauri-apps/tauri?branch=dev)",
+ "tauri-utils 1.2.1 (git+https://github.com/korneliuszw/tauri/?branch=dev)",
 ]
 
 [[package]]
 name = "tauri-runtime"
 version = "0.12.1"
-source = "git+https://github.com/tauri-apps/tauri?branch=dev#cfcc7f3c204af8a62d066e84defb9e9c03ef8092"
+source = "git+https://github.com/korneliuszw/tauri/?branch=dev#7eec42064faebe46858967635ea146ae05af98c1"
 dependencies = [
  "gtk",
  "http",
@@ -3457,7 +3457,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
- "tauri-utils 1.2.1 (git+https://github.com/tauri-apps/tauri?branch=dev)",
+ "tauri-utils 1.2.1 (git+https://github.com/korneliuszw/tauri/?branch=dev)",
  "thiserror",
  "url",
  "uuid 1.3.0",
@@ -3468,7 +3468,7 @@ dependencies = [
 [[package]]
 name = "tauri-runtime-wry"
 version = "0.12.2"
-source = "git+https://github.com/tauri-apps/tauri?branch=dev#cfcc7f3c204af8a62d066e84defb9e9c03ef8092"
+source = "git+https://github.com/korneliuszw/tauri/?branch=dev#7eec42064faebe46858967635ea146ae05af98c1"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3476,7 +3476,7 @@ dependencies = [
  "rand 0.8.5",
  "raw-window-handle",
  "tauri-runtime",
- "tauri-utils 1.2.1 (git+https://github.com/tauri-apps/tauri?branch=dev)",
+ "tauri-utils 1.2.1 (git+https://github.com/korneliuszw/tauri/?branch=dev)",
  "uuid 1.3.0",
  "webkit2gtk",
  "webview2-com",
@@ -3514,7 +3514,7 @@ dependencies = [
 [[package]]
 name = "tauri-utils"
 version = "1.2.1"
-source = "git+https://github.com/tauri-apps/tauri?branch=dev#cfcc7f3c204af8a62d066e84defb9e9c03ef8092"
+source = "git+https://github.com/korneliuszw/tauri/?branch=dev#7eec42064faebe46858967635ea146ae05af98c1"
 dependencies = [
  "brotli",
  "ctor",
